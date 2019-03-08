@@ -4,9 +4,9 @@
 *
 *  TITLE:       SUP.H
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        01 Mar 2019
+*  DATE:        07 Mar 2019
 *
 *  Common header file for the program support routines.
 *
@@ -20,6 +20,10 @@
 
 #include <cfgmgr32.h>
 #include <setupapi.h>
+
+#define T_DEVICE_PROCEXP152 L"\\Device\\ProcExp152"
+
+#define IOCTL_PE_OPEN_PROCESS CTL_CODE(0x8335, 0xF, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 typedef struct _SAPIDB {
     LIST_ENTRY ListHead;
@@ -44,10 +48,22 @@ typedef struct _OBEX_PROCESS_LOOKUP_ENTRY {
     };
 } OBEX_PROCESS_LOOKUP_ENTRY, *POBEX_PROCESS_LOOKUP_ENTRY;
 
-//
-// Gripper window size
-//
-#define GRIPPER_SIZE 11
+typedef struct _PROCESS_MITIGATION_POLICIES_ALL {
+    PROCESS_MITIGATION_DEP_POLICY DEPPolicy;
+    PROCESS_MITIGATION_ASLR_POLICY ASLRPolicy;
+    PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY StrictHandleCheckPolicy;
+    PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY SystemCallDisablePolicy;
+    PROCESS_MITIGATION_EXTENSION_POINT_DISABLE_POLICY ExtensionPointDisablePolicy;
+    PROCESS_MITIGATION_DYNAMIC_CODE_POLICY_W10 DynamicCodePolicy;
+    PROCESS_MITIGATION_CONTROL_FLOW_GUARD_POLICY_W10 ControlFlowGuardPolicy;
+    PROCESS_MITIGATION_BINARY_SIGNATURE_POLICY_W10 SignaturePolicy;
+    PROCESS_MITIGATION_FONT_DISABLE_POLICY_W10 FontDisablePolicy;
+    PROCESS_MITIGATION_IMAGE_LOAD_POLICY_W10 ImageLoadPolicy;
+    PROCESS_MITIGATION_SYSTEM_CALL_FILTER_POLICY_W10 SystemCallFilterPolicy;
+    PROCESS_MITIGATION_PAYLOAD_RESTRICTION_POLICY_W10 PayloadRestrictionPolicy;
+    PROCESS_MITIGATION_CHILD_PROCESS_POLICY_W10 ChildProcessPolicy;
+    PROCESS_MITIGATION_SIDE_CHANNEL_ISOLATION_POLICY_W10 SideChannelIsolationPolicy;
+} PROCESS_MITIGATION_POLICIES_ALL, *PPROCESS_MITIGATION_POLICIES;
 
 #define GET_BIT(Integer, Bit) (((Integer) >> (Bit)) & 0x1)
 #define SET_BIT(Integer, Bit) ((Integer) |= 1 << (Bit))
@@ -75,6 +91,8 @@ extern POBJECT_TYPES_INFORMATION g_pObjectTypesInfo;
 
 #define PathFileExists(lpszPath) (GetFileAttributes(lpszPath) != (DWORD)-1)
 
+BOOL supInitNtdllCRT();
+
 #ifndef _DEBUG
 FORCEINLINE PVOID supHeapAlloc(
     _In_ SIZE_T Size);
@@ -97,7 +115,6 @@ BOOL supVirtualFree(
 
 BOOL supInitTreeListForDump(
     _In_  HWND  hwndParent,
-    _Out_ ATOM *pTreeListAtom,
     _Out_ HWND *pTreeListHwnd);
 
 VOID supShowHelp(
@@ -250,6 +267,15 @@ BOOL supQueryProcessName(
     _Inout_	LPWSTR Buffer,
     _In_ DWORD ccBuffer);
 
+BOOL supQueryThreadObjectInformation(
+    _In_ PCLIENT_ID Cid,
+    _Out_opt_ PULONG_PTR Win32StartAddress,
+    _Out_ PULONG_PTR ObjectPointer);
+
+BOOL supQueryProcessObjectInformation(
+    _In_ PCLIENT_ID Cid,
+    _Out_ PULONG_PTR ObjectPointer);
+
 BOOL supQueryProcessNameByEPROCESS(
     _In_ ULONG_PTR ValueOfEPROCESS,
     _In_ PVOID ProcessList,
@@ -312,13 +338,6 @@ ULONG_PTR supWriteBufferToFile(
     _In_ SIZE_T Size,
     _In_ BOOL Flush,
     _In_ BOOL Append);
-
-HWND supCreateSzGripWindow(
-    _In_ HWND hwndOwner);
-
-VOID supSzGripWindowOnResize(
-    _In_ HWND hwndOwner,
-    _In_ HWND hwndSizeGrip);
 
 BOOL supIsProcess32bit(
     _In_ HANDLE hProcess);
@@ -408,7 +427,7 @@ INT supGetMaxCompareTwoFixedStrings(
     _In_ LPARAM lParamSort,
     _In_ BOOL Inverse);
 
-HANDLE supOpenNamedObjectFromContext(
+HANDLE supOpenObjectFromContext(
     _In_ PROP_OBJECT_INFO *Context,
     _In_ OBJECT_ATTRIBUTES *ObjectAttributes,
     _In_ ACCESS_MASK DesiredAccess,
@@ -433,6 +452,13 @@ VOID supCopyTreeListSubItemValue(
     _In_ HWND TreeList,
     _In_ UINT ValueIndex);
 
+VOID supCopyListViewSubItemValue(
+    _In_ HWND ListView,
+    _In_ UINT ValueIndex);
+
+VOID supJumpToFile(
+    _In_ LPWSTR lpFilePath);
+
 PVOID supBSearch(
     _In_ PCVOID key,
     _In_ PCVOID base,
@@ -442,3 +468,22 @@ PVOID supBSearch(
         _In_ PCVOID key,
         _In_ PCVOID elt
         ));
+
+BOOL supGetProcessDepState(
+    _In_ HANDLE hProcess,
+    _Out_ PPROCESS_MITIGATION_DEP_POLICY DepPolicy);
+
+BOOL supGetProcessMitigationPolicy(
+    _In_ HANDLE hProcess,
+    _In_ PROCESS_MITIGATION_POLICY Policy,
+    _In_ SIZE_T Size,
+    _Out_writes_bytes_(Size) PVOID Buffer);
+
+NTSTATUS supOpenProcessEx(
+    _In_ HANDLE UniqueProcessId,
+    _Out_ PHANDLE ProcessHandle);
+
+BOOL supPrintTimeConverted(
+    _In_ PLARGE_INTEGER Time,
+    _In_ LPWSTR lpBuffer,
+    _In_ SIZE_T cchBuffer);

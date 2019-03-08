@@ -4,9 +4,9 @@
 *
 *  TITLE:       OBJECTS.H
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        01 Mar 2019
+*  DATE:        04 Mar 2019
 *
 *  Header file for internal Windows object types handling.
 *
@@ -102,8 +102,10 @@ typedef struct _WOBJ_TYPE_DESC {
 #define OBTYPE_NAME_DEVICE          L"Device"
 #define OBTYPE_NAME_DRIVER          L"Driver"
 #define OBTYPE_NAME_DIRECTORY       L"Directory"
+#define OBTYPE_NAME_PROCESS         L"Process"
 #define OBTYPE_NAME_SECTION         L"Section"
 #define OBTYPE_NAME_SYMBOLIC_LINK   L"SymbolicLink"
+#define OBTYPE_NAME_THREAD          L"Thread"
 #define OBTYPE_NAME_TYPE            L"Type"
 #define OBTYPE_NAME_WINSTATION      L"WindowStation"
 #define OBTYPE_NAME_UNKNOWN         L""
@@ -160,7 +162,7 @@ static WOBJ_TYPE_DESC g_ObjectTypes[] = {
     { L"Partition", ObjectTypeMemoryPartition, IDI_ICON_MEMORYPARTITION, IDS_DESC_MEMORY_PARTITION },
     { L"PcwObject", ObjectTypePcwObject, IDI_ICON_PCWOBJECT, IDS_DESC_PCWOBJECT },
     { L"PowerRequest", ObjectTypePowerRequest, IDI_ICON_POWERREQUEST, IDS_DESC_POWERREQUEST },
-    { L"Process", ObjectTypeProcess, IDI_ICON_PROCESS, IDS_DESC_PROCESS },
+    { OBTYPE_NAME_PROCESS, ObjectTypeProcess, IDI_ICON_PROCESS, IDS_DESC_PROCESS },
     { L"Profile", ObjectTypeProfile, IDI_ICON_PROFILE, IDS_DESC_PROFILE },
     //{ L"PsSiloContextNonPaged", ObjectTypePsSiloContextNonPaged, IDI_ICON_PSSILOCONTEXT, IDS_DESC_PSSILOCONTEXTNP },
     //{ L"PsSiloContextPaged", ObjectTypePsSiloContextPaged, IDI_ICON_PSSILOCONTEXT, IDS_DESC_PSSILOCONTEXT },
@@ -170,7 +172,7 @@ static WOBJ_TYPE_DESC g_ObjectTypes[] = {
     { L"Semaphore", ObjectTypeSemaphore, IDI_ICON_SEMAPHORE, IDS_DESC_SEMAPHORE },
     { L"Session", ObjectTypeSession, IDI_ICON_SESSION, IDS_DESC_SESSION },
     { OBTYPE_NAME_SYMBOLIC_LINK, ObjectTypeSymbolicLink, IDI_ICON_SYMLINK, IDS_DESC_SYMLINK },
-    { L"Thread", ObjectTypeThread, IDI_ICON_THREAD, IDS_DESC_THREAD },
+    { OBTYPE_NAME_THREAD, ObjectTypeThread, IDI_ICON_THREAD, IDS_DESC_THREAD },
     { L"Timer", ObjectTypeTimer, IDI_ICON_TIMER, IDS_DESC_TIMER },
     { L"TmEn", ObjectTypeTmEn, IDI_ICON_TMEN, IDS_DESC_TMEN },
     { L"TmRm", ObjectTypeTmRm, IDI_ICON_TMRM, IDS_DESC_TMRM },

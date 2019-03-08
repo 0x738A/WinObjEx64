@@ -4,9 +4,9 @@
 *
 *  TITLE:       SUP.C
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        01 Mar 2019
+*  DATE:        06 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -44,6 +44,26 @@ LPWSTR	g_lpKnownDlls64;
 #ifdef _DEBUG
 ULONG g_cHeapAlloc = 0;
 #endif
+
+/*
+* supInitNtdllCRT
+*
+* Purpose:
+*
+* Init ntdll ms crt routines.
+*
+*/
+BOOL supInitNtdllCRT()
+{
+    HMODULE ntdll = GetModuleHandle(TEXT("ntdll.dll"));
+    if (ntdll) {
+        rtl_swprintf_s = (pswprintf_s)GetProcAddress(ntdll, "swprintf_s");
+    }
+
+    if (rtl_swprintf_s == NULL) return FALSE;
+
+    return TRUE;
+}
 
 /*
 * supHeapAlloc
@@ -215,34 +235,28 @@ BOOL supVirtualFree(
 */
 BOOL supInitTreeListForDump(
     _In_ HWND hwndParent,
-    _Out_ ATOM *pTreeListAtom,
     _Out_ HWND *pTreeListHwnd
 )
 {
-    ATOM     TreeListAtom;
     HWND     TreeList;
     HDITEM   hdritem;
     RECT     rc;
 
-    if ((pTreeListAtom == NULL) || (pTreeListHwnd == NULL)) {
+    if (pTreeListHwnd == NULL) {
         return FALSE;
     }
 
     GetClientRect(hwndParent, &rc);
-    TreeListAtom = InitializeTreeListControl();
-    TreeList = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREELIST, NULL,
+    TreeList = CreateWindowEx(/*WS_EX_CLIENTEDGE */WS_EX_STATICEDGE, WC_TREELIST, NULL,
         WS_VISIBLE | WS_CHILD | WS_TABSTOP | TLSTYLE_COLAUTOEXPAND, 12, 20,
-        rc.right - 24, rc.bottom - 30, hwndParent, NULL, NULL, NULL);
+        rc.right - 26, rc.bottom - 34, hwndParent, NULL, NULL, NULL);
 
     if (TreeList == NULL) {
-        UnregisterClass(MAKEINTATOM(TreeListAtom), g_WinObj.hInstance);
         *pTreeListHwnd = NULL;
-        *pTreeListAtom = 0;
         return FALSE;
     }
 
     *pTreeListHwnd = TreeList;
-    *pTreeListAtom = TreeListAtom;
 
     RtlSecureZeroMemory(&hdritem, sizeof(hdritem));
     hdritem.mask = HDI_FORMAT | HDI_TEXT | HDI_WIDTH;
@@ -1014,6 +1028,30 @@ VOID supShowProperties(
 }
 
 /*
+* supJumpToFile
+*
+* Purpose:
+*
+* Open explorer window for given path.
+*
+*/
+VOID supJumpToFile(
+    _In_ LPWSTR lpFilePath
+)
+{
+    LPITEMIDLIST IIDL;
+
+    if (lpFilePath == NULL)
+        return;
+
+    IIDL = ILCreateFromPath(lpFilePath);
+    if (IIDL) {
+        SHOpenFolderAndSelectItems(IIDL, 0, NULL, 0);
+        ILFree(IIDL);
+    }
+}
+
+/*
 * supUserIsFullAdmin
 *
 * Purpose:
@@ -1163,7 +1201,7 @@ VOID supHandleObjectPopupMenu(
     if (supxIsSymlink(hwndlv, iItem)) {
         InsertMenu(hMenu, 1, MF_BYCOMMAND, ID_OBJECT_GOTOLINKTARGET, T_GOTOLINKTARGET);
         supSetMenuIcon(hMenu, ID_OBJECT_GOTOLINKTARGET,
-            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ListViewImages, 
+            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ListViewImages,
                 ObManagerGetImageIndexByTypeName(OBTYPE_NAME_SYMBOLIC_LINK)));
         uEnable &= ~MF_GRAYED;
     }
@@ -1192,7 +1230,7 @@ VOID supSetGotoLinkTargetToolButtonState(
     UINT  uEnable = MF_BYCOMMAND | MF_GRAYED;
 
     if (bForce) {
-        if (bForceEnable) 
+        if (bForceEnable)
             uEnable &= ~MF_GRAYED;
     }
     else {
@@ -1550,6 +1588,95 @@ BOOL supQueryProcessName(
     } while (NextEntryDelta);
 
     return FALSE;
+}
+
+/*
+* supQueryThreadObjectInformation
+*
+* Purpose:
+*
+* Lookups the following thread information:
+*
+*  1) Thread object address
+*  2) Thread win32 start address
+*
+* If thread cannot be opened for query access then routine return FALSE.
+*
+*/
+BOOL supQueryThreadObjectInformation(
+    _In_ PCLIENT_ID Cid,
+    _Out_opt_ PULONG_PTR Win32StartAddress,
+    _Out_ PULONG_PTR ObjectPointer
+)
+{
+    BOOL bResult = FALSE, bQueryWin32StartAddress = (Win32StartAddress != NULL);
+    ULONG ReturnLength;
+    NTSTATUS Status;
+
+    HANDLE hThread;
+    ULONG_PTR win32kStartAddress = 0, objectPointer = 0;
+    OBJECT_ATTRIBUTES Obja = RTL_INIT_OBJECT_ATTRIBUTES((PUNICODE_STRING)NULL, 0);
+
+    Status = NtOpenThread(&hThread, THREAD_QUERY_INFORMATION, &Obja, Cid);
+    if (!NT_SUCCESS(Status)) {
+        Status = NtOpenThread(&hThread, THREAD_QUERY_LIMITED_INFORMATION, &Obja, Cid);
+        bQueryWin32StartAddress = FALSE;
+    }
+
+    if (NT_SUCCESS(Status)) {
+
+        if (bQueryWin32StartAddress) {
+            NtQueryInformationThread(hThread, ThreadQuerySetWin32StartAddress,
+                &win32kStartAddress, sizeof(ULONG_PTR), &ReturnLength);
+        }
+
+        bResult = supQueryObjectFromHandle(hThread, &objectPointer, NULL);
+
+        NtClose(hThread);
+    }
+    if (Win32StartAddress)
+        *Win32StartAddress = win32kStartAddress;
+    *ObjectPointer = objectPointer;
+
+    return bResult;
+}
+
+/*
+* supQueryProcessObjectInformation
+*
+* Purpose:
+*
+* Lookups the following process information:
+*
+*  1) Process object address
+*
+* If process cannot be opened for query access then routine return FALSE.
+*
+*/
+BOOL supQueryProcessObjectInformation(
+    _In_ PCLIENT_ID Cid,
+    _Out_ PULONG_PTR ObjectPointer
+)
+{
+    BOOL bResult = FALSE;
+    NTSTATUS Status;
+    HANDLE hProcess;
+    ULONG_PTR objectPointer = 0;
+    OBJECT_ATTRIBUTES Obja = RTL_INIT_OBJECT_ATTRIBUTES((PUNICODE_STRING)NULL, 0);
+
+    Status = NtOpenProcess(&hProcess, PROCESS_QUERY_INFORMATION, &Obja, Cid);
+    if (!NT_SUCCESS(Status)) {
+        Status = NtOpenProcess(&hProcess, PROCESS_QUERY_LIMITED_INFORMATION, &Obja, Cid);
+    }
+
+    if (NT_SUCCESS(Status)) {
+        bResult = supQueryObjectFromHandle(hProcess, &objectPointer, NULL);
+        NtClose(hProcess);
+    }
+
+    *ObjectPointer = objectPointer;
+
+    return bResult;
 }
 
 /*
@@ -2468,7 +2595,7 @@ BOOL supQueryDriverDescription(
 
             RtlSecureZeroMemory(szImagePath, sizeof(szImagePath));
             dwSize = sizeof(szImagePath) - sizeof(UNICODE_NULL);
-            lRet = RegQueryValueEx(hKey, L"ImagePath", NULL, NULL, (LPBYTE)szImagePath, &dwSize);
+            lRet = RegQueryValueEx(hKey, TEXT("ImagePath"), NULL, NULL, (LPBYTE)szImagePath, &dwSize);
             RegCloseKey(hKey);
 
             if (ERROR_SUCCESS == lRet) {
@@ -2497,7 +2624,8 @@ BOOL supQueryDriverDescription(
 
                 // query filedescription from file with given codepage & language id
                 RtlSecureZeroMemory(szBuffer, sizeof(szBuffer));
-                wsprintf(szBuffer, VERSION_DESCRIPTION,
+                
+                rtl_swprintf_s(szBuffer, MAX_PATH, VERSION_DESCRIPTION,
                     lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
 
                 // finally query pointer to version_info filedescription block data
@@ -2638,7 +2766,7 @@ BOOL supQuerySectionFileInfo(
 
         // query filedescription from file with given codepage & language id
         RtlSecureZeroMemory(szQueryBlock, sizeof(szQueryBlock));
-        wsprintf(szQueryBlock, VERSION_DESCRIPTION,
+        rtl_swprintf_s(szQueryBlock, MAX_PATH, VERSION_DESCRIPTION,
             lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
 
         // finally query pointer to version_info filedescription block data
@@ -2881,55 +3009,6 @@ SIZE_T supWriteBufferToFile(
         RtlFreeUnicodeString(&NtFileName);
     }
     return BytesWritten;
-}
-
-/*
-* supCreateSzGripWindow
-*
-* Purpose:
-*
-* Create size grip and attach it to owner window.
-*
-*/
-HWND supCreateSzGripWindow(
-    _In_ HWND hwndOwner
-)
-{
-    HWND hwnd;
-    RECT clientRect;
-
-    GetClientRect(hwndOwner, &clientRect);
-    clientRect.left = clientRect.right - GRIPPER_SIZE;
-    clientRect.top = clientRect.bottom - GRIPPER_SIZE;
-
-    hwnd = CreateWindowEx(0, WC_SCROLLBAR, NULL,
-        WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP | WS_CLIPSIBLINGS,
-        clientRect.left, clientRect.top,
-        GRIPPER_SIZE, GRIPPER_SIZE, hwndOwner, NULL, g_WinObj.hInstance, NULL);
-
-    return hwnd;
-}
-
-/*
-* supSzGripWindowOnResize
-*
-* Purpose:
-*
-* Must be called in WM_SIZE for sizegrip window proper reposition.
-*
-*/
-VOID supSzGripWindowOnResize(
-    _In_ HWND hwndOwner,
-    _In_ HWND hwndSizeGrip
-)
-{
-    RECT clientRect;
-
-    GetClientRect(hwndOwner, &clientRect);
-    SetWindowPos(hwndSizeGrip, NULL,
-        clientRect.right - GRIPPER_SIZE, clientRect.bottom - GRIPPER_SIZE,
-        GRIPPER_SIZE, GRIPPER_SIZE,
-        SWP_NOZORDER | SWP_SHOWWINDOW);
 }
 
 /*
@@ -3305,7 +3384,7 @@ HWINSTA supOpenWindowStationFromContextEx(
     OBJECT_ATTRIBUTES obja;
 
     if (supxGetWindowStationName(&CurrentWinstaDir)) {
-        
+
         //
         // Same session, open as usual.
         //
@@ -3316,7 +3395,7 @@ HWINSTA supOpenWindowStationFromContextEx(
                 Status = STATUS_SUCCESS;
         }
         else {
-            
+
             //
             // Different session, use NtUserOpenWindowStation (doesn't work in Windows 10).
             //
@@ -3324,15 +3403,15 @@ HWINSTA supOpenWindowStationFromContextEx(
             Status = NtOpenDirectoryObject(&hRootDirectory,
                 DIRECTORY_TRAVERSE,
                 &obja);
-            
+
             if (NT_SUCCESS(Status)) {
-                
+
                 RtlInitUnicodeString(&WinstaName, Context->lpObjectName);
                 InitializeObjectAttributes(&obja, &WinstaName, OBJ_CASE_INSENSITIVE, hRootDirectory, NULL);
-                
+
                 if (fInherit)
                     obja.Attributes |= OBJ_INHERIT;
-                
+
                 hObject = g_ExtApiSet.NtUserOpenWindowStation(&obja, dwDesiredAccess);
 
                 Status = RtlGetLastNtStatus();
@@ -3931,24 +4010,30 @@ PVOID supFindPattern(
     _In_ SIZE_T PatternSize
 )
 {
-    PBYTE	p = Buffer;
+    PBYTE p0 = Buffer, pnext;
 
     if (PatternSize == 0)
         return NULL;
+
     if (BufferSize < PatternSize)
         return NULL;
-    BufferSize -= PatternSize;
 
     do {
-        p = (PBYTE)memchr(p, Pattern[0], BufferSize - (p - Buffer));
-        if (p == NULL)
+        pnext = (PBYTE)memchr(p0, Pattern[0], BufferSize);
+        if (pnext == NULL)
             break;
 
-        if (memcmp(p, Pattern, PatternSize) == 0)
-            return p;
+        BufferSize -= (ULONG_PTR)(pnext - p0);
 
-        p++;
-    } while (BufferSize - (p - Buffer) > 0); //-V555
+        if (BufferSize < PatternSize)
+            return NULL;
+
+        if (memcmp(pnext, Pattern, PatternSize) == 0)
+            return pnext;
+
+        p0 = pnext + 1;
+        --BufferSize;
+    } while (BufferSize > 0);
 
     return NULL;
 }
@@ -4185,14 +4270,14 @@ INT supGetMaxCompareTwoFixedStrings(
 }
 
 /*
-* supOpenNamedObjectFromContext
+* supOpenObjectFromContext
 *
 * Purpose:
 *
 * Return handle (query rights) for the given named object.
 *
 */
-HANDLE supOpenNamedObjectFromContext(
+HANDLE supOpenObjectFromContext(
     _In_ PROP_OBJECT_INFO *Context,
     _In_ OBJECT_ATTRIBUTES *ObjectAttributes,
     _In_ ACCESS_MASK DesiredAccess,
@@ -4203,6 +4288,7 @@ HANDLE supOpenNamedObjectFromContext(
     NTSTATUS status = STATUS_UNSUCCESSFUL;
     IO_STATUS_BLOCK iost;
     OBJECT_ATTRIBUTES objaNamespace;
+    CLIENT_ID clientId;
 
     if (Context->IsPrivateNamespaceObject) {
 
@@ -4229,6 +4315,39 @@ HANDLE supOpenNamedObjectFromContext(
     }
 
     switch (Context->TypeIndex) {
+
+    case ObjectTypeProcess:
+        if (Context->IsUnnamedObject) {
+
+            status = supOpenProcessEx(
+                Context->UnnamedObjectInfo.Process->UniqueProcessId,
+                &hObject);
+
+            if (!NT_SUCCESS(status)) {
+
+                clientId.UniqueProcess = Context->UnnamedObjectInfo.Process->UniqueProcessId;
+                    clientId.UniqueThread = NULL;
+
+                    status = NtOpenProcess(&hObject, DesiredAccess,
+                        ObjectAttributes,
+                        &clientId);
+            }
+        }
+        else
+            status = STATUS_INVALID_PARAMETER;
+
+        break;
+
+    case ObjectTypeThread:
+        if (Context->IsUnnamedObject) {
+            status = NtOpenThread(&hObject, DesiredAccess,
+                ObjectAttributes,
+                &Context->UnnamedObjectInfo.Thread->ClientId);
+        }
+        else
+            status = STATUS_INVALID_PARAMETER;
+        break;
+
     case ObjectTypeDevice: //FILE_OBJECT
         status = NtCreateFile(&hObject, DesiredAccess, ObjectAttributes, &iost, NULL, 0,
             FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN, 0, NULL, 0);//generic access rights
@@ -4384,7 +4503,7 @@ VOID supCopyTreeListSubItemValue(
 {
     SIZE_T             cbText;
     LPWSTR             lpText;
-    TL_SUBITEMS_FIXED *subitems;
+    TL_SUBITEMS_FIXED *subitems = NULL;
     TVITEMEX           itemex;
     WCHAR              textbuf[MAX_PATH + 1];
 
@@ -4392,7 +4511,6 @@ VOID supCopyTreeListSubItemValue(
 
         RtlSecureZeroMemory(&itemex, sizeof(itemex));
         RtlSecureZeroMemory(textbuf, sizeof(textbuf));
-        subitems = NULL;
         itemex.mask = TVIF_TEXT;
         itemex.hItem = TreeList_GetSelection(TreeList);
         itemex.pszText = textbuf;
@@ -4412,6 +4530,33 @@ VOID supCopyTreeListSubItemValue(
     }
     __except (exceptFilter(GetExceptionCode(), GetExceptionInformation())) {
         return;
+    }
+}
+
+/*
+* supCopyListViewSubItemValue
+*
+* Purpose:
+*
+* Copy listview value to the clipboard.
+*
+*/
+VOID supCopyListViewSubItemValue(
+    _In_ HWND ListView,
+    _In_ UINT ValueIndex
+)
+{
+    INT mark;
+    SIZE_T cbText;
+    LPWSTR lpText;
+
+    mark = ListView_GetSelectionMark(ListView);
+
+    lpText = supGetItemText(ListView, mark, ValueIndex, NULL);
+    if (lpText) {
+        cbText = _strlen(lpText) * sizeof(WCHAR);
+        supClipboardCopy(lpText, cbText);
+        supHeapFree(lpText);
     }
 }
 
@@ -4452,4 +4597,188 @@ PVOID supBSearch(
     }
 
     return NULL;
+}
+
+/*
+* supGetProcessMitigationPolicy
+*
+* Purpose:
+*
+* Request process mitigation policy values.
+*
+*/
+BOOL supGetProcessMitigationPolicy(
+    _In_ HANDLE hProcess,
+    _In_ PROCESS_MITIGATION_POLICY Policy,
+    _In_ SIZE_T Size,
+    _Out_writes_bytes_(Size) PVOID Buffer
+)
+{
+    ULONG Length = 0;
+    PROCESS_MITIGATION_POLICY_INFORMATION MitigationPolicy;
+
+    MitigationPolicy.Policy = (PROCESS_MITIGATION_POLICY)Policy;
+
+    if (!NT_SUCCESS(NtQueryInformationProcess(
+        hProcess,
+        ProcessMitigationPolicy,
+        &MitigationPolicy,
+        sizeof(PROCESS_MITIGATION_POLICY_INFORMATION),
+        &Length)))
+    {
+        return FALSE;
+    }
+
+    RtlCopyMemory(Buffer, &MitigationPolicy, Size);
+
+    return TRUE;
+}
+
+/*
+* supGetProcessDepState
+*
+* Purpose:
+*
+* Query DEP state for process from ProcessExecuteFlags.
+*
+*/
+BOOL supGetProcessDepState(
+    _In_ HANDLE hProcess,
+    _Out_ PPROCESS_MITIGATION_DEP_POLICY DepPolicy
+)
+{
+    ULONG ExecuteFlags = 0;
+
+    if (NT_SUCCESS(NtQueryInformationProcess(
+        hProcess,
+        ProcessExecuteFlags,
+        (PVOID)&ExecuteFlags,
+        sizeof(ULONG),
+        NULL)))
+    {
+        if (ExecuteFlags & MEM_EXECUTE_OPTION_ENABLE)
+            DepPolicy->Enable = 0;
+        else
+            DepPolicy->Enable = 1;
+
+        if (ExecuteFlags & MEM_EXECUTE_OPTION_DISABLE_THUNK_EMULATION)
+            DepPolicy->DisableAtlThunkEmulation = 1;
+        else
+            DepPolicy->DisableAtlThunkEmulation = 0;
+
+        if (ExecuteFlags & MEM_EXECUTE_OPTION_PERMANENT)
+            DepPolicy->Permanent = 1;
+        else
+            DepPolicy->Permanent = 0;
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/*
+* supOpenProcessEx
+*
+* Purpose:
+*
+* Open process via SysInternals Process Explorer driver.
+*
+* Return process handle with PROCESS_ALL_ACCESS desired access.
+*
+*/
+NTSTATUS supOpenProcessEx(
+    _In_ HANDLE UniqueProcessId,
+    _Out_ PHANDLE ProcessHandle
+)
+{
+    NTSTATUS status;
+    HANDLE deviceHandle = NULL, processHandle = NULL;
+
+    UNICODE_STRING usDevName = RTL_CONSTANT_STRING(T_DEVICE_PROCEXP152);
+    OBJECT_ATTRIBUTES obja;
+    IO_STATUS_BLOCK iost;
+
+    *ProcessHandle = NULL;
+
+    if (g_kdctx.IsFullAdmin == FALSE)
+        return STATUS_ACCESS_DENIED;
+
+    InitializeObjectAttributes(&obja, &usDevName, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    status = NtCreateFile(
+        &deviceHandle,
+        GENERIC_READ | GENERIC_WRITE,
+        &obja,
+        &iost,
+        NULL,
+        0,
+        0,
+        FILE_OPEN,
+        0,
+        NULL,
+        0);
+
+    if (NT_SUCCESS(status)) {
+        
+        status = NtDeviceIoControlFile(
+            deviceHandle,
+            NULL,
+            NULL,
+            NULL,
+            &iost,
+            (ULONG)IOCTL_PE_OPEN_PROCESS,
+            (PVOID)&UniqueProcessId,
+            sizeof(UniqueProcessId),
+            (PVOID)&processHandle,
+            sizeof(processHandle));
+
+        if (NT_SUCCESS(status))
+            *ProcessHandle = processHandle;
+
+        NtClose(deviceHandle);
+    }
+    return status;
+}
+
+/*
+* supPrintTimeConverted
+*
+* Purpose:
+*
+* Print local converted time to string buffer.
+*
+*/
+BOOL supPrintTimeConverted(
+    _In_ PLARGE_INTEGER Time,
+    _In_ LPWSTR lpBuffer,
+    _In_ SIZE_T cchBuffer
+)
+{
+    FILETIME ConvertedTime;
+    TIME_FIELDS TimeFields;
+
+    if ((Time == NULL) || (lpBuffer == NULL)) return 0;
+    if (cchBuffer == 0) return 0;
+
+    FileTimeToLocalFileTime((PFILETIME)Time, (PFILETIME)&ConvertedTime);
+    RtlSecureZeroMemory(&TimeFields, sizeof(TimeFields));
+    RtlTimeToTimeFields((PLARGE_INTEGER)&ConvertedTime, (PTIME_FIELDS)&TimeFields);
+
+    if (TimeFields.Month - 1 < 0) TimeFields.Month = 1;
+    if (TimeFields.Month > 12) TimeFields.Month = 12;
+
+    rtl_swprintf_s(
+        lpBuffer, 
+        cchBuffer, 
+        FORMATTED_TIME_DATE_VALUE,
+        TimeFields.Hour,
+        TimeFields.Minute,
+        TimeFields.Second,
+        TimeFields.Day,
+        g_szMonths[TimeFields.Month - 1],
+        TimeFields.Year);
+
+    return 1;
+
 }

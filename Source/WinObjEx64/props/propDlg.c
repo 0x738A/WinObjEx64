@@ -4,9 +4,9 @@
 *
 *  TITLE:       PROPDLG.C
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        09 Feb 2019
+*  DATE:        06 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -36,6 +36,7 @@ WNDPROC PropSheetOriginalWndProc = NULL;
 
 //handle to the PropertySheet window
 HWND g_PropWindow = NULL;
+HWND g_PsPropWindow = NULL;
 HWND g_SubPropWindow = NULL;
 HWND g_NamespacePropWindow = NULL;
 
@@ -128,6 +129,31 @@ BOOL propOpenCurrentObject(
     }
 
     //
+    // Objects without name must be handled in a special way.
+    //
+    if (Context->IsUnnamedObject) {
+        if (Context->UnnamedObjectInfo.ObjectPointer == NULL) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return bResult;
+        }
+
+        InitializeObjectAttributes(&obja, NULL, 0, NULL, NULL);
+
+        hObject = supOpenObjectFromContext(
+            Context,
+            &obja,
+            DesiredAccess,
+            &status);
+
+        SetLastError(RtlNtStatusToDosError(status));
+        bResult = ((NT_SUCCESS(status)) && (hObject != NULL));
+        if (bResult) {
+            *phObject = hObject;
+        }
+        return bResult;
+    }
+
+    //
     // Namespace objects must be handled in a special way.
     //
     if (Context->IsPrivateNamespaceObject) {
@@ -138,7 +164,7 @@ BOOL propOpenCurrentObject(
 
         RtlInitUnicodeString(&ustr, Context->lpObjectName);
         InitializeObjectAttributes(&obja, &ustr, OBJ_CASE_INSENSITIVE, NULL, NULL);
-        hObject = supOpenNamedObjectFromContext(
+        hObject = supOpenObjectFromContext(
             Context,
             &obja,
             DesiredAccess,
@@ -225,7 +251,7 @@ BOOL propOpenCurrentObject(
     //
     // Handle supported objects.
     //
-    hObject = supOpenNamedObjectFromContext(
+    hObject = supOpenObjectFromContext(
         Context,
         &obja,
         DesiredAccess,
@@ -420,7 +446,10 @@ LRESULT WINAPI PropSheetCustomWndProc(
     case WM_CLOSE:
         DestroyWindow(hwnd);
 
-        if (hwnd == g_NamespacePropWindow) {
+        if (hwnd == g_PsPropWindow) {
+            g_PsPropWindow = NULL;
+        }
+        else if (hwnd == g_NamespacePropWindow) {
             g_NamespacePropWindow = NULL;
         }
         else if (hwnd == g_SubPropWindow) {
@@ -466,7 +495,8 @@ VOID propCreateDialog(
     _In_ LPWSTR lpObjectName,
     _In_ LPCWSTR lpObjectType,
     _In_opt_ LPWSTR lpDescription,
-    _In_opt_ PROP_NAMESPACE_INFO *NamespaceObject
+    _In_opt_ PROP_NAMESPACE_INFO *NamespaceObject,
+    _In_opt_ PROP_UNNAMED_OBJECT_INFO *UnnamedObject
 )
 {
     BOOL                IsPrivateNamespaceObject = FALSE;
@@ -505,6 +535,17 @@ VOID propCreateDialog(
     }
     if (propContext == NULL)
         return;
+
+    //
+    // Remember unnamed object info.
+    //
+    if (UnnamedObject) {
+        propContext->IsUnnamedObject = TRUE;
+        RtlCopyMemory(
+            &propContext->UnnamedObjectInfo,
+            UnnamedObject,
+            sizeof(PROP_UNNAMED_OBJECT_INFO));
+    }
 
     //
     // Remember previously focused window.
@@ -573,6 +614,12 @@ VOID propCreateDialog(
     case ObjectTypePort:
         Page.pszTemplate = MAKEINTRESOURCE(IDD_PROP_ALPCPORT);
         break;
+    case ObjectTypeProcess:
+        Page.pszTemplate = MAKEINTRESOURCE(IDD_PROP_PROCESS);
+        break;
+    case ObjectTypeThread:
+        Page.pszTemplate = MAKEINTRESOURCE(IDD_PROP_THREAD);
+        break;
     case ObjectTypeType:
     default:
         Page.pszTemplate = MAKEINTRESOURCE(IDD_PROP_BASIC);
@@ -629,10 +676,12 @@ VOID propCreateDialog(
     case ObjectTypeSymbolicLink:
     case ObjectTypeTimer:
     case ObjectTypeJob:
-    case ObjectTypeWinstation:
     case ObjectTypeSession:
     case ObjectTypeIoCompletion:
     case ObjectTypeMemoryPartition:
+    case ObjectTypeProcess:
+    case ObjectTypeThread:
+    case ObjectTypeWinstation:
         RtlSecureZeroMemory(&Page, sizeof(Page));
         Page.dwSize = sizeof(PROPSHEETPAGE);
         Page.dwFlags = PSP_DEFAULT | PSP_USETITLE;
@@ -729,10 +778,15 @@ VOID propCreateDialog(
     //remove class icon if any
     SetClassLongPtr(hwndDlg, GCLP_HICON, (LONG_PTR)NULL);
 
-    if (IsPrivateNamespaceObject) {
+    if (propContext->TypeIndex == ObjectTypeProcess ||
+        propContext->TypeIndex == ObjectTypeThread)
+    {
+        g_PsPropWindow = hwndDlg;
+    }
+    else if (IsPrivateNamespaceObject) {
         g_NamespacePropWindow = hwndDlg;
     }
-    if (propContext->TypeIndex == ObjectTypeDesktop) {
+    else if (propContext->TypeIndex == ObjectTypeDesktop) {
         g_SubPropWindow = hwndDlg;
     }
     else {

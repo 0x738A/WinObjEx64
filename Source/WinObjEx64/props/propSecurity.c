@@ -4,9 +4,9 @@
 *
 *  TITLE:       PROPSECURITY.C
 *
-*  VERSION:     1.71
+*  VERSION:     1.73
 *
-*  DATE:        01 Feb 2019
+*  DATE:        05 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -46,7 +46,9 @@ BOOL propSecurityObjectSupported(
         (nTypeIndex != ObjectTypeIoCompletion) &&
         (nTypeIndex != ObjectTypeJob) &&
         (nTypeIndex != ObjectTypeSession) &&
-        (nTypeIndex != ObjectTypeMemoryPartition))
+        (nTypeIndex != ObjectTypeMemoryPartition) &&
+        (nTypeIndex != ObjectTypeProcess) &&
+        (nTypeIndex != ObjectTypeThread))
     {
         return FALSE;
     }
@@ -143,6 +145,16 @@ PSI_ACCESS propGetAccessTable(
     case ObjectTypeMemoryPartition:
         This->dwAccessMax = MAX_KNOWN_MEMORYPARTITION_ACCESS_VALUE;
         AccessTable = (PSI_ACCESS)&MemoryPartitionAccessValues;
+        break;
+
+    case ObjectTypeProcess:
+        This->dwAccessMax = MAX_KNOWN_PROCESS_ACCESS_VALUE;
+        AccessTable = (PSI_ACCESS)&ProcessAccessValues;
+        break;
+
+    case ObjectTypeThread:
+        This->dwAccessMax = MAX_KNOWN_THREAD_ACCESS_VALUE;
+        AccessTable = (PSI_ACCESS)&ThreadAccessValues;
         break;
     }
 

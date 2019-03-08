@@ -1,14 +1,15 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2015 - 2018
+*  (C) COPYRIGHT AUTHORS, 2015 - 2019
 *
 *  TITLE:       TREELIST.C
 *
-*  VERSION:     1.23
+*  VERSION:     1.24
 *
-*  DATE:        12 Dec 2018
+*  DATE:        03 Feb 2019
 *
 *  TreeList control.
+*  TreeList is a compound control with container box. Catch messages in containter wndproc.
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -28,7 +29,7 @@
 #include "minirtl\minirtl.h"
 #pragma comment(lib, "Uxtheme.lib")
 
-HTHEME		tl_theme = NULL;
+HTHEME  tl_theme = NULL;
 
 VOID AddTooltipItemSub(
     HWND TreeControl,
@@ -60,17 +61,17 @@ VOID TreeListUpdateTooltips(
     HWND hwndTreeList
 )
 {
-    PTL_SUBITEMS	subitems;
-    RECT			rc, subrc, treerc;
-    TOOLINFO		tool;
-    ULONG			ToolCount, newToolId;
+    PTL_SUBITEMS    subitems;
+    RECT            rc, subrc, treerc;
+    TOOLINFO        tool;
+    ULONG           ToolCount, newToolId;
     SIZE_T          i;
-    LONG			cx;
-    TVITEMEX		itemex;
-    HWND			TreeControl = (HWND)GetWindowLongPtr(hwndTreeList, TL_TREECONTROL_SLOT),
+    LONG            cx;
+    TVITEMEX        itemex;
+    HWND            TreeControl = (HWND)GetWindowLongPtr(hwndTreeList, TL_TREECONTROL_SLOT),
         ToolTips = (HWND)GetWindowLongPtr(hwndTreeList, TL_TOOLTIPS_SLOT),
         Header = (HWND)GetWindowLongPtr(hwndTreeList, TL_HEADERCONTROL_SLOT);
-    HTREEITEM		item = TreeView_GetRoot(TreeControl);
+    HTREEITEM       item = TreeView_GetRoot(TreeControl);
 
     ToolCount = (ULONG)SendMessage(ToolTips, TTM_GETTOOLCOUNT, 0, 0);
     RtlSecureZeroMemory(&tool, sizeof(tool));
@@ -129,18 +130,18 @@ LRESULT TreeListCustomDraw(
     LPNMTVCUSTOMDRAW pdraw
 )
 {
-    TCHAR				textbuf[MAX_PATH];
-    TVITEMEX			item;
-    HDITEM				hdritem;
-    HBRUSH				brush;
-    HPEN				pen;
-    RECT				hr, ir, subr;
-    SIZE				tsz;
-    LONG				i, ColumnCount, cx;
-    PTL_SUBITEMS		subitem;
-    HGDIOBJ				prev;
-    BOOL				ItemSelected;
-    HIMAGELIST			ImgList;
+    TCHAR               textbuf[MAX_PATH];
+    TVITEMEX            item;
+    HDITEM              hdritem;
+    HBRUSH              brush;
+    HPEN                pen;
+    RECT                hr, ir, subr;
+    SIZE                tsz;
+    LONG                i, ColumnCount, cx;
+    PTL_SUBITEMS        subitem;
+    HGDIOBJ             prev;
+    BOOL                ItemSelected;
+    HIMAGELIST          ImgList;
 
     if ((pdraw->nmcd.dwDrawStage & CDDS_ITEM) == 0)
         return CDRF_NOTIFYITEMDRAW;
@@ -301,9 +302,9 @@ VOID TreeListHandleHeaderNotify(
     HWND hwndHeader
 )
 {
-    LONG		cx, i, c, headerheight;
-    RECT		hr, ir;
-    SCROLLINFO	scroll;
+    LONG        cx, i, c, headerheight;
+    RECT        hr, ir;
+    SCROLLINFO  scroll;
 
     RtlSecureZeroMemory(&hr, sizeof(hr));
     GetWindowRect(hwndHeader, &hr);
@@ -354,10 +355,10 @@ VOID TreeListAutoExpand(
     LPNMTREEVIEW nhdr
 )
 {
-    RECT		irc;
-    LONG		cx = 0, xleft = 0;
-    HDITEM		hdi;
-    HTREEITEM	citem = TreeView_GetChild(nhdr->hdr.hwndFrom, nhdr->itemNew.hItem);
+    RECT        irc;
+    LONG        cx = 0, xleft = 0;
+    HDITEM      hdi;
+    HTREEITEM   citem = TreeView_GetChild(nhdr->hdr.hwndFrom, nhdr->itemNew.hItem);
 
     RtlSecureZeroMemory(&irc, sizeof(irc));
     TreeView_GetItemRect(nhdr->hdr.hwndFrom, citem, &irc, TRUE);
@@ -393,12 +394,12 @@ LRESULT CALLBACK HeaderHookProc(
     LPARAM lParam
 )
 {
-    HWND		BaseWindow = GetParent(hwnd);
-    WNDPROC		OriginalTreeProc = (WNDPROC)GetWindowLongPtr(BaseWindow, TL_HEADERWNDPROC_SLOT);
-    HDC			dc;
-    LRESULT		retv;
-    RECT		rc;
-    HPEN		pen, prev;
+    HWND        BaseWindow = GetParent(hwnd);
+    WNDPROC     OriginalTreeProc = (WNDPROC)GetWindowLongPtr(BaseWindow, TL_HEADERWNDPROC_SLOT);
+    HDC         dc;
+    LRESULT     retv;
+    RECT        rc;
+    HPEN        pen, prev;
 
     retv = OriginalTreeProc(hwnd, uMsg, wParam, lParam);
     if (uMsg != WM_PAINT)
@@ -428,16 +429,16 @@ LRESULT CALLBACK TreeListHookProc(
     LPARAM lParam
 )
 {
-    HWND			BaseWindow = GetParent(hwnd);
-    WNDPROC			OriginalTreeProc = (WNDPROC)GetWindowLongPtr(BaseWindow, TL_TREEWNDPROC_SLOT);
-    LPNMTTDISPINFO	hdr;
-    LPTSTR			privateBuffer;
-    TVITEMEX		itemex;
-    RECT			rc, hr;
-    PTL_SUBITEMS	subitems;
-    TOOLINFO		tool;
-    HDC				dc;
-    ULONG_PTR		subid;
+    HWND            BaseWindow = GetParent(hwnd);
+    WNDPROC         OriginalTreeProc = (WNDPROC)GetWindowLongPtr(BaseWindow, TL_TREEWNDPROC_SLOT);
+    LPNMTTDISPINFO  hdr;
+    LPTSTR          privateBuffer;
+    TVITEMEX        itemex;
+    RECT            rc, hr;
+    PTL_SUBITEMS    subitems;
+    TOOLINFO        tool;
+    HDC             dc;
+    ULONG_PTR       subid;
 
     switch (uMsg) {
     case WM_NOTIFY:
@@ -536,22 +537,22 @@ LRESULT CALLBACK TreeListWindowProc(
     LPARAM lParam
 )
 {
-    HWND				TreeControl, HeaderControl, ToolTip;
-    PTL_SUBITEMS		newsubitems, subitems, *ppsubitems;
-    TVHITTESTINFO		lhti;
-    LONG				cx, headerheight;
-    HANDLE				hheap;
-    ULONG				i;
-    RECT				hr;
-    LPTSTR				s;
-    NONCLIENTMETRICS	ncm;
-    HFONT				font;
-    LPNMHEADER			hdr;
-    SCROLLINFO			scroll;
-    TV_INSERTSTRUCT		ins;
-    size_t				size;
-    TVITEMEX			item;
-    LRESULT				result;
+    HWND                TreeControl, HeaderControl, ToolTip;
+    PTL_SUBITEMS        newsubitems, subitems, *ppsubitems;
+    TVHITTESTINFO       lhti;
+    LONG                cx, headerheight;
+    HANDLE              hheap;
+    ULONG               i;
+    RECT                hr;
+    LPTSTR              s;
+    NONCLIENTMETRICS    ncm;
+    HFONT               font;
+    LPNMHEADER          hdr;
+    SCROLLINFO          scroll;
+    TV_INSERTSTRUCT     ins;
+    size_t              size;
+    TVITEMEX            item;
+    LRESULT             result;
 
     switch (uMsg) {
 
@@ -706,8 +707,8 @@ LRESULT CALLBACK TreeListWindowProc(
             }
             /* break to DefWindowProc */
             break;
-        }
-
+        } 
+        
         if (hdr->hdr.hwndFrom == HeaderControl) {
             switch (hdr->hdr.code) {
             case HDN_ITEMCHANGED:
@@ -719,6 +720,7 @@ LRESULT CALLBACK TreeListWindowProc(
                 break;
             }
         }
+
         break;
 
     case WM_HSCROLL:
@@ -850,8 +852,8 @@ LRESULT CALLBACK TreeListWindowProc(
 
 ATOM InitializeTreeListControl()
 {
-    WNDCLASSEX	wincls;
-    HINSTANCE	hinst = GetModuleHandle(NULL);
+    WNDCLASSEX  wincls;
+    HINSTANCE   hinst = GetModuleHandle(NULL);
 
     wincls.cbSize = sizeof(WNDCLASSEX);
     wincls.style = 0;

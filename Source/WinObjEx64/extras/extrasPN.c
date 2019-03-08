@@ -4,9 +4,9 @@
 *
 *  TITLE:       EXTRASPN.C
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        09 Feb 2019
+*  DATE:        05 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -103,7 +103,8 @@ VOID PNDlgShowObjectProperties(
                 lpName,
                 lpType,
                 NULL,
-                &propNamespace);
+                &propNamespace,
+                NULL);
 
             supHeapFree(lpType);
         }

@@ -4,9 +4,9 @@
 *
 *  TITLE:       MAIN.C
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        01 Mar 2019
+*  DATE:        07 Mar 2019
 *
 *  Program entry point and main window handler.
 *
@@ -20,9 +20,12 @@
 #include "global.h"
 #include "aboutDlg.h"
 #include "findDlg.h"
-#include "props\propDlg.h"
-#include "extras\extras.h"
-#include "tests\testunit.h"
+#include "treelist/treelist.h"
+#include "props/propDlg.h"
+#include "extras/extras.h"
+#include "tests/testunit.h"
+
+pswprintf_s rtl_swprintf_s;
 
 static LONG	SplitterPos = 180;
 static LONG	SortColumn = 0;
@@ -34,6 +37,7 @@ HWND        hwndToolBar = NULL, hwndSplitter = NULL, hwndStatusBar = NULL, MainW
 // Global UI variables.
 //
 
+ATOM g_TreeListAtom;
 HWND g_hwndObjectTree;
 HWND g_hwndObjectList;
 HIMAGELIST g_ListViewImages;
@@ -175,6 +179,7 @@ VOID MainWindowHandleObjectTreeProp(
             szBuffer,
             OBTYPE_NAME_DIRECTORY,
             NULL,
+            NULL,
             NULL);
     }
 }
@@ -220,6 +225,7 @@ VOID MainWindowHandleObjectListProp(
                 lpItemText,
                 lpType,
                 lpDesc,
+                NULL,
                 NULL);
 
             if (lpDesc) {
@@ -836,15 +842,18 @@ LRESULT CALLBACK MainWindowProc(
 *
 */
 BOOL MainWindowDlgMsgHandler(
-    _In_ MSG msg
+    _In_ MSG msg,
+    _In_ HACCEL hAccTable
 )
 {
     UINT c;
 
     for (c = 0; c < wobjMaxDlgId; c++) {
         if ((g_WinObj.AuxDialogs[c] != NULL)) {
-            if (IsDialogMessage(g_WinObj.AuxDialogs[c], &msg))
+            if (IsDialogMessage(g_WinObj.AuxDialogs[c], &msg)) {
+                TranslateAccelerator(g_WinObj.AuxDialogs[c], hAccTable, &msg);
                 return TRUE;
+            }
         }
     }
 
@@ -970,6 +979,9 @@ UINT WinObjExMain()
     HANDLE                  hToken;
     HIMAGELIST              TreeViewImages;
 
+    if (!supInitNtdllCRT())
+        return ERROR_APP_INIT_FAILURE;
+
     IsWine = supIsWine();
 
     //
@@ -1049,7 +1061,7 @@ UINT WinObjExMain()
         }
 
         //
-        // Main App window.
+        // Create main window.
         //
         MainWindow = CreateWindowEx(
             0,
@@ -1169,6 +1181,11 @@ UINT WinObjExMain()
             (HMENU)1005,
             g_WinObj.hInstance,
             NULL);
+
+        //
+        // Register treelist control class.
+        //
+        g_TreeListAtom = InitializeTreeListControl();
 
         //
         // Initialization of views.
@@ -1383,7 +1400,7 @@ UINT WinObjExMain()
             if (rv == -1)
                 break;
 
-            if (MainWindowDlgMsgHandler(msg1))
+            if (MainWindowDlgMsgHandler(msg1, hAccTable))
                 continue;
 
             if (IsDialogMessage(MainWindow, &msg1)) {
@@ -1399,6 +1416,9 @@ UINT WinObjExMain()
 
     if (class_atom != 0)
         UnregisterClass(MAKEINTATOM(class_atom), g_WinObj.hInstance);
+
+    if (g_TreeListAtom != 0)
+        UnregisterClass(MAKEINTATOM(g_TreeListAtom), g_WinObj.hInstance);
 
     //do not move anywhere
 

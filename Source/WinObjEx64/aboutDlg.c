@@ -4,9 +4,9 @@
 *
 *  TITLE:       ABOUTDLG.C
 *
-*  VERSION:     1.72
+*  VERSION:     1.73
 *
-*  DATE:        03 Feb 2019
+*  DATE:        07 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -38,7 +38,6 @@ VOID AboutDialogInit(
     ULONG    returnLength;
     NTSTATUS status;
     HANDLE   hImage;
-    SIZE_T   l;
     WCHAR    szBuffer[MAX_PATH];
 
     SYSTEM_BOOT_ENVIRONMENT_INFORMATION sbei;
@@ -78,10 +77,10 @@ VOID AboutDialogInit(
     SetDlgItemText(hwndDlg, ID_ABOUT_BUILDDATE, szBuffer);
 
     // fill OS name
-    wsprintf(szBuffer, TEXT("Windows NT %1u.%1u (build %u"),
+    rtl_swprintf_s(szBuffer, 100, TEXT("Windows NT %1u.%1u (build %u"),
         g_WinObj.osver.dwMajorVersion, g_WinObj.osver.dwMinorVersion, g_WinObj.osver.dwBuildNumber);
     if (g_WinObj.osver.szCSDVersion[0]) {
-        wsprintf(_strend(szBuffer), TEXT(", %ws)"), g_WinObj.osver.szCSDVersion);
+        rtl_swprintf_s(_strend(szBuffer), 130, TEXT(", %wS)"), g_WinObj.osver.szCSDVersion);
     }
     else {
         _strcat(szBuffer, TEXT(")"));
@@ -91,12 +90,10 @@ VOID AboutDialogInit(
     // fill boot options
     RtlSecureZeroMemory(&szBuffer, sizeof(szBuffer));
     RtlSecureZeroMemory(&sbei, sizeof(sbei));
-    l = 0;
 
     // query kd debugger enabled
     if (kdIsDebugBoot()) {
-        _strcpy(&szBuffer[l], TEXT("Debug, "));
-        l = _strlen(szBuffer);
+        _strcpy(szBuffer, TEXT("Debug, "));
     }
 
     // query vhd boot state if possible
@@ -105,8 +102,7 @@ VOID AboutDialogInit(
         status = NtQuerySystemInformation(SystemVhdBootInformation, psvbi, PAGE_SIZE, &returnLength);
         if (NT_SUCCESS(status)) {
             if (psvbi->OsDiskIsVhd) {
-                _strcpy(&szBuffer[l], TEXT("VHD, "));
-                l = _strlen(szBuffer);
+                _strcat(szBuffer, TEXT("VHD, "));
             }
         }
         supHeapFree(psvbi);
@@ -115,19 +111,33 @@ VOID AboutDialogInit(
     // query firmware mode and secure boot state for uefi
     status = NtQuerySystemInformation(SystemBootEnvironmentInformation, &sbei, sizeof(sbei), &returnLength);
     if (NT_SUCCESS(status)) {
-        wsprintf(&szBuffer[l], TEXT("%ws mode"),
-            ((sbei.FirmwareType == FirmwareTypeUefi) ? TEXT("UEFI") : ((sbei.FirmwareType == FirmwareTypeBios) ? TEXT("BIOS") : TEXT("Unknown"))));
+        
+        if (sbei.FirmwareType == FirmwareTypeUefi) {
+            _strcat(szBuffer, TEXT("UEFI"));
+        }
+        else {
+            if (sbei.FirmwareType == FirmwareTypeBios) {
+                _strcat(szBuffer, TEXT("BIOS"));
+            }
+            else {
+                _strcat(szBuffer, TEXT("Unknown"));
+            }
+        }
 
         if (sbei.FirmwareType == FirmwareTypeUefi) {
             bSecureBoot = FALSE;
             if (supQuerySecureBootState(&bSecureBoot)) {
-                wsprintf(_strend(szBuffer), TEXT(" with%ws SecureBoot"), (bSecureBoot == TRUE) ? TEXT("") : TEXT("out"));
+                _strcat(szBuffer, TEXT(" with"));
+                if (bSecureBoot == FALSE) {
+                    _strcat(szBuffer, TEXT("out"));
+                }
+                _strcat(szBuffer, TEXT(" SecureBoot"));
             }
             g_kdctx.IsSecureBoot = bSecureBoot;
         }
     }
     else {
-        _strcpy(&szBuffer[l], TEXT("Unknown"));
+        _strcpy(szBuffer, TEXT("Unknown"));
     }
     SetDlgItemText(hwndDlg, ID_ABOUT_ADVINFO, szBuffer);
 
@@ -139,16 +149,15 @@ VOID AboutDialogInit(
 *
 * Purpose:
 *
-* Build globals list (g_kdctx).
+* Build globals list (g_kdctx + g_WinObj).
 *
 */
 VOID AboutDialogCollectGlobals(
-    _In_ LPWSTR lpDestBuffer)
+    _In_ HWND hwndParent,
+    _In_ LPWSTR lpDestBuffer
+)
 {
-    wsprintf(lpDestBuffer, TEXT("Winver: %u.%u.%u"),
-        g_WinObj.osver.dwMajorVersion,
-        g_WinObj.osver.dwMinorVersion,
-        g_WinObj.osver.dwBuildNumber);
+    GetDlgItemText(hwndParent, ID_ABOUT_OSNAME, lpDestBuffer, MAX_PATH);
 
     _strcat(lpDestBuffer, TEXT("\r\n"));
 
@@ -315,7 +324,7 @@ INT_PTR AboutDialogShowGlobals(
     if (g_hwndGlobals) {
         lpGlobalInfo = (LPWSTR)supVirtualAlloc(PAGE_SIZE);
         if (lpGlobalInfo) {
-            AboutDialogCollectGlobals(lpGlobalInfo);
+            AboutDialogCollectGlobals(hwndParent, lpGlobalInfo);
             SetWindowText(g_hwndGlobals, lpGlobalInfo);
             SendMessage(g_hwndGlobals, EM_SETREADONLY, (WPARAM)1, 0);
             supVirtualFree(lpGlobalInfo);
