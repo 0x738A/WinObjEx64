@@ -59,10 +59,9 @@
 #include <Uxtheme.h>
 #include <ShlObj.h>
 #include <ntstatus.h>
-#include <stdio.h>
+#include <sddl.h>
 #include "resource.h"
 #include "wine.h"
-#include <sddl.h>
 #include "minirtl\minirtl.h"
 #include "minirtl\rtltypes.h"
 #include "ntos\ntos.h"

@@ -30,40 +30,23 @@ HWND g_TreeList;
 *
 * Purpose:
 *
-* Hide all windows for given hwnd and display error text.
+* Hide all windows for given hwnd and display error text with custom text if specified.
 *
 */
 VOID propObDumpShowError(
-    _In_ HWND hwndDlg
-)
-{
-    RECT rGB;
-
-    if (GetWindowRect(hwndDlg, &rGB)) {
-        EnumChildWindows(hwndDlg, supEnumHideChildWindows, (LPARAM)&rGB);
-    }
-    ShowWindow(GetDlgItem(hwndDlg, ID_OBJECTDUMPERROR), SW_SHOW);
-}
-
-/*
-* propObDumpShowMessage
-*
-* Purpose:
-*
-* Hide all windows for given hwnd and display message text.
-*
-*/
-VOID propObDumpShowMessage(
     _In_ HWND hwndDlg,
-    _In_ LPWSTR lpMessageText
+    _In_opt_ LPWSTR lpMessageText
 )
 {
-    RECT rGB;
+    ENUMCHILDWNDDATA ChildWndData;
 
-    if (GetWindowRect(hwndDlg, &rGB)) {
-        EnumChildWindows(hwndDlg, supEnumHideChildWindows, (LPARAM)&rGB);
+    if (GetWindowRect(hwndDlg, &ChildWndData.Rect)) {
+        ChildWndData.nCmdShow = SW_HIDE;
+        EnumChildWindows(hwndDlg, supCallbackShowChildWindow, (LPARAM)&ChildWndData);
     }
-    SetWindowText(GetDlgItem(hwndDlg, ID_OBJECTDUMPERROR), lpMessageText);
+    if (lpMessageText) {
+        SetWindowText(GetDlgItem(hwndDlg, ID_OBJECTDUMPERROR), lpMessageText);
+    }
     ShowWindow(GetDlgItem(hwndDlg, ID_OBJECTDUMPERROR), SW_SHOW);
 }
 
@@ -978,13 +961,13 @@ VOID propObDumpDriverObject(
 
         //any errors - abort
         if (!bOkay) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -1403,13 +1386,13 @@ VOID propObDumpDeviceObject(
             sizeof(devObject),
             NULL))
         {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -1953,7 +1936,7 @@ VOID propObDumpDirectoryObject(
             ObjectSize,
             NULL))
         {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -2004,7 +1987,7 @@ VOID propObDumpDirectoryObject(
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -2213,7 +2196,7 @@ VOID propObDumpSyncObject(
 
         Object = supHeapAlloc(ObjectSize);
         if (Object == NULL) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -2224,14 +2207,14 @@ VOID propObDumpSyncObject(
             ObjectSize,
             NULL))
         {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             supHeapFree(Object);
             return;
         }
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             supHeapFree(Object);
             return;
         }
@@ -2327,7 +2310,7 @@ VOID propObDumpSyncObject(
         }
 
         if (Header == NULL) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             supHeapFree(Object);
             return;
         }
@@ -2754,7 +2737,7 @@ VOID propObDumpObjectType(
     // Show error message on failure.
     //
     if (bOkay == FALSE) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 }
@@ -2791,19 +2774,19 @@ VOID propObDumpQueueObject(
             sizeof(Queue),
             NULL))
         {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         lpDesc2 = NULL;
         if (Queue.Header.Size == (sizeof(KQUEUE) / sizeof(ULONG))) {
-            lpDesc2 = L"sizeof(KQUEUE)/sizeof(ULONG)";
+            lpDesc2 = TEXT("sizeof(KQUEUE)/sizeof(ULONG)");
         }
 
         h_tviRootItem = TreeListAddItem(
@@ -2819,16 +2802,16 @@ VOID propObDumpQueueObject(
         propObDumpDispatcherHeader(h_tviRootItem, &Queue.Header, NULL, NULL, lpDesc2);
 
         //EntryListHead
-        propObDumpListEntry(g_TreeList, h_tviRootItem, L"EntryListHead", &Queue.EntryListHead);
+        propObDumpListEntry(g_TreeList, h_tviRootItem, TEXT("EntryListHead"), &Queue.EntryListHead);
 
         //CurrentCount
-        propObDumpUlong(g_TreeList, h_tviRootItem, L"CurrentCount", NULL, Queue.CurrentCount, TRUE, FALSE, 0, 0);
+        propObDumpUlong(g_TreeList, h_tviRootItem, TEXT("CurrentCount"), NULL, Queue.CurrentCount, TRUE, FALSE, 0, 0);
 
         //MaximumCount
-        propObDumpUlong(g_TreeList, h_tviRootItem, L"MaximumCount", NULL, Queue.MaximumCount, TRUE, FALSE, 0, 0);
+        propObDumpUlong(g_TreeList, h_tviRootItem, TEXT("MaximumCount"), NULL, Queue.MaximumCount, TRUE, FALSE, 0, 0);
 
         //ThreadListHead
-        propObDumpListEntry(g_TreeList, h_tviRootItem, L"ThreadListHead", &Queue.ThreadListHead);
+        propObDumpListEntry(g_TreeList, h_tviRootItem, TEXT("ThreadListHead"), &Queue.ThreadListHead);
 
     }
     __except (exceptFilter(GetExceptionCode(), GetExceptionInformation())) {
@@ -2867,19 +2850,19 @@ VOID propObDumpFltServerPort(
             sizeof(FltServerPortObject),
             NULL))
         {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         g_TreeList = 0;
         if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
         pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
         if (pModules == NULL) {
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             return;
         }
 
@@ -3109,13 +3092,13 @@ VOID propObDumpAlpcPort(
         &ObjectVersion);
 
     if (PortDumpBuffer == NULL) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
     g_TreeList = 0;
     if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         supVirtualFree(PortDumpBuffer);
         return;
     }
@@ -3449,7 +3432,7 @@ VOID propObDumpCallback(
         sizeof(ObjectDump),
         NULL))
     {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
@@ -3457,7 +3440,7 @@ VOID propObDumpCallback(
     // Verify object signature.
     //
     if (ObjectDump.Signature != EX_CALLBACK_SIGNATURE) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
@@ -3466,7 +3449,7 @@ VOID propObDumpCallback(
     //
     Modules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
     if (Modules == NULL) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
@@ -3475,7 +3458,7 @@ VOID propObDumpCallback(
     //
     g_TreeList = 0;
     if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
@@ -3511,7 +3494,7 @@ VOID propObDumpCallback(
             //
             // Abort all output on error.
             //
-            propObDumpShowError(hwndDlg);
+            propObDumpShowError(hwndDlg, NULL);
             break;
         }
 
@@ -3530,7 +3513,7 @@ VOID propObDumpCallback(
     // If nothing found (or possible query error) output this message.
     //
     if (Count == 0) {
-        propObDumpShowMessage(hwndDlg,
+        propObDumpShowError(hwndDlg,
             TEXT("This object has no registered callbacks or there is an query error."));
     }
 
@@ -3578,7 +3561,7 @@ VOID propObDumpSymbolicLink(
         &ObjectVersion);
 
     if (SymLinkDumpBuffer == NULL) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         return;
     }
 
@@ -3589,7 +3572,7 @@ VOID propObDumpSymbolicLink(
     //
     g_TreeList = 0;
     if (!supInitTreeListForDump(hwndDlg, &g_TreeList)) {
-        propObDumpShowError(hwndDlg);
+        propObDumpShowError(hwndDlg, NULL);
         supVirtualFree(SymLinkDumpBuffer);
         return;
     }
@@ -3617,10 +3600,10 @@ VOID propObDumpSymbolicLink(
     if (SystemTime.Month > 12) SystemTime.Month = 12;
 
     RtlSecureZeroMemory(szBuffer, sizeof(szBuffer));
-    
+
     rtl_swprintf_s(
-        szBuffer, 
-        MAX_PATH, 
+        szBuffer,
+        MAX_PATH,
         FORMATTED_TIME_DATE_VALUE,
         SystemTime.Hour,
         SystemTime.Minute,

@@ -500,7 +500,7 @@ VOID TestStart(
     TestTimer();
     TestTransaction();
     TestWinsta();
-    TestJob();
+    //TestJob();
 }
 
 VOID TestStop(

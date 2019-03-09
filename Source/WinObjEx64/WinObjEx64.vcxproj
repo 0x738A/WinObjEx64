@@ -135,7 +135,7 @@
       <AssemblerOutput>All</AssemblerOutput>
       <BrowseInformation>true</BrowseInformation>
       <CompileAs>CompileAsCpp</CompileAs>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\treelist;$(ProjectDir)\props;$(ProjectDir)\extras;$(ProjectDir)\ntos</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -417,6 +417,7 @@
     <ClCompile Include="props\propObjectDump.c" />
     <ClCompile Include="props\propProcess.c" />
     <ClCompile Include="props\propSecurity.c" />
+    <ClCompile Include="props\propToken.c" />
     <ClCompile Include="props\propType.c" />
     <ClCompile Include="sup.c" />
     <ClCompile Include="tests\testunit.c" />
@@ -463,6 +464,7 @@
     <ClInclude Include="props\propProcess.h" />
     <ClInclude Include="props\propSecurity.h" />
     <ClInclude Include="props\propSecurityConsts.h" />
+    <ClInclude Include="props\propToken.h" />
     <ClInclude Include="props\propType.h" />
     <ClInclude Include="props\propTypeConsts.h" />
     <ClInclude Include="resource.h" />

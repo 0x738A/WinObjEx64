@@ -1,7 +1,7 @@
 v1.7.3
 + threads list in processes dialog
 + view file properties for kiservicetable/w32pservicetable dialog
-+ process/thread object properties dialog
++ process/thread/token object properties dialog
 
 v1.7.2
 + symbolic link object dump

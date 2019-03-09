@@ -80,7 +80,8 @@ VOID AboutDialogInit(
     rtl_swprintf_s(szBuffer, 100, TEXT("Windows NT %1u.%1u (build %u"),
         g_WinObj.osver.dwMajorVersion, g_WinObj.osver.dwMinorVersion, g_WinObj.osver.dwBuildNumber);
     if (g_WinObj.osver.szCSDVersion[0]) {
-        rtl_swprintf_s(_strend(szBuffer), 130, TEXT(", %wS)"), g_WinObj.osver.szCSDVersion);
+        _strcat(szBuffer, TEXT(", "));
+        _strcat(szBuffer, g_WinObj.osver.szCSDVersion);
     }
     else {
         _strcat(szBuffer, TEXT(")"));

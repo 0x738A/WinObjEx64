@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        09 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -196,7 +196,6 @@ PVOID PsListGetObjectEntry(
 {
     INT nSelected;
     TVITEMEX itemex;
-    LVITEM lvitem;
     TL_SUBITEMS_FIXED *subitems = NULL;
     PVOID ObjectEntry = NULL;
 
@@ -209,11 +208,7 @@ PVOID PsListGetObjectEntry(
     }
     else {
         nSelected = ListView_GetSelectionMark(PsDlgContext.ListView);
-        RtlSecureZeroMemory(&lvitem, sizeof(lvitem));
-        lvitem.mask = LVIF_PARAM;
-        lvitem.iItem = nSelected;
-        ListView_GetItem(PsDlgContext.ListView, &lvitem);
-        ObjectEntry = (PVOID)lvitem.lParam;
+        supGetListViewItemParam(PsDlgContext.ListView, nSelected, &ObjectEntry);
     }
 
     return ObjectEntry;
@@ -591,15 +586,8 @@ HTREEITEM AddProcessEntryTreeList(
 
     DWORD CurrentProcessId = GetCurrentProcessId();
 
-    NTSTATUS status;
     ULONG Length, r, fState = 0;
     PWSTR Caption, P, UserName = NULL;
-
-    LSA_OBJECT_ATTRIBUTES lobja;
-    LSA_HANDLE PolicyHandle = NULL;
-    PLSA_REFERENCED_DOMAIN_LIST ReferencedDomains = NULL;
-    PLSA_TRANSLATED_NAME Names = NULL;
-    SECURITY_QUALITY_OF_SERVICE SecurityQualityOfService;
 
     PROCESS_EXTENDED_BASIC_INFORMATION exbi;
     WCHAR szEPROCESS[32];
@@ -724,67 +712,8 @@ HTREEITEM AddProcessEntryTreeList(
     //
     if (ProcessSid) {
 
-        SecurityQualityOfService.Length = sizeof(SECURITY_QUALITY_OF_SERVICE);
-        SecurityQualityOfService.ImpersonationLevel = SecurityImpersonation;
-        SecurityQualityOfService.ContextTrackingMode = SECURITY_DYNAMIC_TRACKING;
-        SecurityQualityOfService.EffectiveOnly = FALSE;
-
-        InitializeObjectAttributes(
-            &lobja,
-            NULL,
-            0L,
-            NULL,
-            NULL);
-
-        lobja.SecurityQualityOfService = &SecurityQualityOfService;
-
-        if (NT_SUCCESS(LsaOpenPolicy(NULL,
-            (PLSA_OBJECT_ATTRIBUTES)&lobja,
-            POLICY_LOOKUP_NAMES,
-            (PLSA_HANDLE)&PolicyHandle)))
-        {
-            status = LsaLookupSids(
-                PolicyHandle,
-                1,
-                (PSID*)&ProcessSid,
-                (PLSA_REFERENCED_DOMAIN_LIST*)&ReferencedDomains,
-                (PLSA_TRANSLATED_NAME*)&Names);
-
-            if ((NT_SUCCESS(status)) && (status != STATUS_SOME_NOT_MAPPED)) {
-
-                Length = 0;
-
-                if ((ReferencedDomains != NULL) && (Names != NULL)) {
-
-                    Length = 4 + ReferencedDomains->Domains[0].Name.MaximumLength +
-                        Names->Name.MaximumLength;
-
-                    UserName = (LPWSTR)supHeapAlloc(r);
-                    if (UserName) {
-
-                        _strncpy(UserName,
-                            Length,
-                            ReferencedDomains->Domains[0].Name.Buffer,
-                            ReferencedDomains->Domains[0].Name.Length);
-
-                        Length -= ReferencedDomains->Domains[0].Name.Length;
-
-                        P = _strcat(UserName, TEXT("\\"));
-
-                        Length -= sizeof(WCHAR);
-
-                        _strncpy(P,
-                            Length,
-                            Names->Name.Buffer,
-                            Names->Name.Length);
-
-                        subitems.Text[1] = UserName;
-                    }
-                }
-                if (ReferencedDomains) LsaFreeMemory(ReferencedDomains);
-                if (Names) LsaFreeMemory(Names);
-            }
-            LsaClose(PolicyHandle);
+        if (supLookupSidUserAndDomain(ProcessSid, &UserName)) {
+            subitems.Text[1] = UserName;
         }
         supHeapFree(ProcessSid);
     }

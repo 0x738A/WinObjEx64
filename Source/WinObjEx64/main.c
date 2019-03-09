@@ -526,6 +526,72 @@ VOID MainWindowTreeViewSelChanged(
 }
 
 /*
+* MainWindowHandleTreePopupMenu
+*
+* Purpose:
+*
+* Object Tree popup menu builder.
+*
+*/
+VOID MainWindowHandleTreePopupMenu(
+    _In_ HWND hwnd,
+    _In_ LPPOINT point
+)
+{
+    HMENU hMenu;
+
+    hMenu = CreatePopupMenu();
+    if (hMenu) {
+        InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_OBJECT_PROPERTIES, T_PROPERTIES);
+
+        supSetMenuIcon(hMenu, ID_OBJECT_PROPERTIES,
+            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ToolBarMenuImages, 0));
+
+        TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_LEFTALIGN, point->x, point->y, 0, hwnd, NULL);
+        DestroyMenu(hMenu);
+    }
+}
+
+/*
+* MainWindowHandleObjectPopupMenu
+*
+* Purpose:
+*
+* Object List popup menu builder.
+*
+*/
+VOID MainWindowHandleObjectPopupMenu(
+    _In_ HWND hwnd,
+    _In_ HWND hwndlv,
+    _In_ INT iItem,
+    _In_ LPPOINT point
+)
+{
+    HMENU hMenu;
+    UINT  uEnable = MF_BYCOMMAND | MF_GRAYED;
+
+    hMenu = CreatePopupMenu();
+    if (hMenu == NULL) return;
+
+    InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_OBJECT_PROPERTIES, T_PROPERTIES);
+
+    supSetMenuIcon(hMenu, ID_OBJECT_PROPERTIES,
+        (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ToolBarMenuImages, 0));
+
+    if (supIsSymlink(hwndlv, iItem)) {
+        InsertMenu(hMenu, 1, MF_BYCOMMAND, ID_OBJECT_GOTOLINKTARGET, T_GOTOLINKTARGET);
+        supSetMenuIcon(hMenu, ID_OBJECT_GOTOLINKTARGET,
+            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ListViewImages,
+                ObManagerGetImageIndexByTypeName(OBTYPE_NAME_SYMBOLIC_LINK)));
+        uEnable &= ~MF_GRAYED;
+    }
+    EnableMenuItem(GetSubMenu(GetMenu(hwnd), 2), ID_OBJECT_GOTOLINKTARGET, uEnable);
+
+    TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_LEFTALIGN, point->x, point->y, 0, hwnd, NULL);
+    DestroyMenu(hMenu);
+}
+
+/*
 * MainWindowHandleWMNotify
 *
 * Purpose:
@@ -588,7 +654,7 @@ LRESULT MainWindowHandleWMNotify(
                     TreeView_SelectItem(g_hwndObjectTree, SelectedTreeItem);
                     SendMessage(hwndStatusBar, WM_SETTEXT, 0, (LPARAM)g_WinObj.CurrentObjectPath);
                     supSetGotoLinkTargetToolButtonState(hwnd, 0, 0, TRUE, FALSE);
-                    supHandleTreePopupMenu(hwnd, &pt);
+                    MainWindowHandleTreePopupMenu(hwnd, &pt);
                 }
                 break;
             }
@@ -748,7 +814,7 @@ LRESULT CALLBACK MainWindowProc(
             TreeView_GetItemRect(g_hwndObjectTree, TreeView_GetSelection(g_hwndObjectTree), &crc, TRUE);
             crc.top = crc.bottom;
             ClientToScreen(g_hwndObjectTree, (LPPOINT)&crc);
-            supHandleTreePopupMenu(hwnd, (LPPOINT)&crc);
+            MainWindowHandleTreePopupMenu(hwnd, (LPPOINT)&crc);
         }
 
         if ((HWND)wParam == g_hwndObjectList) {
@@ -762,7 +828,7 @@ LRESULT CALLBACK MainWindowProc(
             else
                 GetCursorPos((LPPOINT)&crc);
 
-            supHandleObjectPopupMenu(hwnd, g_hwndObjectList, mark, (LPPOINT)&crc);
+            MainWindowHandleObjectPopupMenu(hwnd, g_hwndObjectList, mark, (LPPOINT)&crc);
         }
         break;
 

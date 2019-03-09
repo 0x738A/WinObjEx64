@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        09 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -687,18 +687,62 @@ VOID supCenterWindow(
 }
 
 /*
+* supGetTokenInfo
+*
+* Purpose:
+*
+* Returns buffer with token information by given TokenInformationClass.
+*
+* Returned buffer must be freed with supHeapFree after usage.
+*
+*/
+PVOID supGetTokenInfo(
+    _In_ HANDLE TokenHandle,
+    _In_ TOKEN_INFORMATION_CLASS TokenInformationClass
+)
+{
+    PVOID Buffer = NULL;
+    ULONG SizeNeeded = 0;
+
+    NtQueryInformationToken(TokenHandle,
+        TokenInformationClass,
+        NULL,
+        0,
+        &SizeNeeded);
+
+    Buffer = supHeapAlloc((SIZE_T)SizeNeeded);
+    if (Buffer) {
+
+        if (NT_SUCCESS(NtQueryInformationToken(TokenHandle,
+            TokenInformationClass,
+            Buffer,
+            SizeNeeded,
+            &SizeNeeded)))
+        {
+            return Buffer;
+        }
+        else {
+            supHeapFree(Buffer);
+            return NULL;
+        }
+    }
+
+    return Buffer;
+}
+
+/*
 * supGetSystemInfo
 *
 * Purpose:
 *
-* Returns buffer with system information by given InfoClass.
+* Returns buffer with system information by given SystemInformationClass.
 *
 * Returned buffer must be freed with supHeapFree after usage.
 * Function will return error after 20 attempts.
 *
 */
 PVOID supGetSystemInfo(
-    _In_ SYSTEM_INFORMATION_CLASS InfoClass
+    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass
 )
 {
     INT         c = 0;
@@ -710,7 +754,7 @@ PVOID supGetSystemInfo(
     do {
         Buffer = supHeapAlloc((SIZE_T)Size);
         if (Buffer != NULL) {
-            status = NtQuerySystemInformation(InfoClass, Buffer, Size, &memIO);
+            status = NtQuerySystemInformation(SystemInformationClass, Buffer, Size, &memIO);
         }
         else {
             return NULL;
@@ -1127,14 +1171,14 @@ BOOL supUserIsFullAdmin(
 }
 
 /*
-* supxIsSymlink
+* supIsSymlink
 *
 * Purpose:
 *
 * Tests if the current item type is Symbolic link.
 *
 */
-BOOL supxIsSymlink(
+BOOL supIsSymlink(
     _In_ HWND hwndList,
     _In_ INT iItem
 )
@@ -1143,72 +1187,6 @@ BOOL supxIsSymlink(
     RtlSecureZeroMemory(ItemText, sizeof(ItemText));
     ListView_GetItemText(hwndList, iItem, 1, ItemText, MAX_PATH);
     return (_strcmpi(ItemText, OBTYPE_NAME_SYMBOLIC_LINK) == 0);
-}
-
-/*
-* supHandleTreePopupMenu
-*
-* Purpose:
-*
-* Object Tree popup menu builder.
-*
-*/
-VOID supHandleTreePopupMenu(
-    _In_ HWND hwnd,
-    _In_ LPPOINT point
-)
-{
-    HMENU hMenu;
-
-    hMenu = CreatePopupMenu();
-    if (hMenu) {
-        InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_OBJECT_PROPERTIES, T_PROPERTIES);
-
-        supSetMenuIcon(hMenu, ID_OBJECT_PROPERTIES,
-            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ToolBarMenuImages, 0));
-
-        TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_LEFTALIGN, point->x, point->y, 0, hwnd, NULL);
-        DestroyMenu(hMenu);
-    }
-}
-
-/*
-* supHandleObjectPopupMenu
-*
-* Purpose:
-*
-* Object List popup menu builder.
-*
-*/
-VOID supHandleObjectPopupMenu(
-    _In_ HWND hwnd,
-    _In_ HWND hwndlv,
-    _In_ INT iItem,
-    _In_ LPPOINT point
-)
-{
-    HMENU hMenu;
-    UINT  uEnable = MF_BYCOMMAND | MF_GRAYED;
-
-    hMenu = CreatePopupMenu();
-    if (hMenu == NULL) return;
-
-    InsertMenu(hMenu, 0, MF_BYCOMMAND, ID_OBJECT_PROPERTIES, T_PROPERTIES);
-
-    supSetMenuIcon(hMenu, ID_OBJECT_PROPERTIES,
-        (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ToolBarMenuImages, 0));
-
-    if (supxIsSymlink(hwndlv, iItem)) {
-        InsertMenu(hMenu, 1, MF_BYCOMMAND, ID_OBJECT_GOTOLINKTARGET, T_GOTOLINKTARGET);
-        supSetMenuIcon(hMenu, ID_OBJECT_GOTOLINKTARGET,
-            (ULONG_PTR)ImageList_ExtractIcon(g_WinObj.hInstance, g_ListViewImages,
-                ObManagerGetImageIndexByTypeName(OBTYPE_NAME_SYMBOLIC_LINK)));
-        uEnable &= ~MF_GRAYED;
-    }
-    EnableMenuItem(GetSubMenu(GetMenu(hwnd), 2), ID_OBJECT_GOTOLINKTARGET, uEnable);
-
-    TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_LEFTALIGN, point->x, point->y, 0, hwnd, NULL);
-    DestroyMenu(hMenu);
 }
 
 /*
@@ -1234,7 +1212,7 @@ VOID supSetGotoLinkTargetToolButtonState(
             uEnable &= ~MF_GRAYED;
     }
     else {
-        if (supxIsSymlink(hwndlv, iItem)) {
+        if (supIsSymlink(hwndlv, iItem)) {
             uEnable &= ~MF_GRAYED;
         }
     }
@@ -2094,47 +2072,24 @@ VOID sapiFreeSnapshot(
 }
 
 /*
-* supEnumEnableChildWindows
+* supCallbackShowChildWindow
 *
 * Purpose:
 *
-* Makes window controls visible in the given rectangle type dialog
+* Makes window controls (in)visible in the given rectangle type dialog
 *
 */
-BOOL WINAPI supEnumEnableChildWindows(
+BOOL WINAPI supCallbackShowChildWindow(
     _In_ HWND hwnd,
     _In_ LPARAM lParam
 )
 {
-    RECT   r1;
-    LPRECT lpRect = (LPRECT)lParam;
+    RECT r1;
+    ENUMCHILDWNDDATA *Data = (PENUMCHILDWNDDATA)lParam;
 
     if (GetWindowRect(hwnd, &r1)) {
-        if (PtInRect(lpRect, *(POINT*)&r1))
-            ShowWindow(hwnd, SW_SHOW);
-    }
-    return TRUE;
-}
-
-/*
-* supEnumHideChildWindows
-*
-* Purpose:
-*
-* Makes window controls invisible in the given rectangle type dialog
-*
-*/
-BOOL WINAPI supEnumHideChildWindows(
-    _In_ HWND hwnd,
-    _In_ LPARAM lParam
-)
-{
-    RECT   r1;
-    LPRECT lpRect = (LPRECT)lParam;
-
-    if (GetWindowRect(hwnd, &r1)) {
-        if (PtInRect(lpRect, *(POINT*)&r1))
-            ShowWindow(hwnd, SW_HIDE);
+        if (PtInRect(&Data->Rect, *(POINT*)&r1))
+            ShowWindow(hwnd, Data->nCmdShow);
     }
     return TRUE;
 }
@@ -4781,4 +4736,167 @@ BOOL supPrintTimeConverted(
 
     return 1;
 
+}
+
+/*
+* supGetListViewItemParam
+*
+* Purpose:
+*
+* Return ListView item associated parameter.
+*
+*/
+BOOL supGetListViewItemParam(
+    _In_ HWND hwndListView,
+    _In_ INT itemIndex,
+    _Out_ PVOID *outParam
+)
+{
+    LVITEM lvitem;
+
+    lvitem.mask = LVIF_PARAM;
+    lvitem.iItem = itemIndex;
+    lvitem.iSubItem = 0;
+    lvitem.lParam = 0;
+
+    if (!ListView_GetItem(hwndListView, &lvitem))
+        return FALSE;
+
+    *outParam = (PVOID)lvitem.lParam;
+
+    return TRUE;
+}
+
+/*
+* supIntegrityToString
+*
+* Purpose:
+*
+* Translate integrity level to string name.
+*
+*/
+LPWSTR supIntegrityToString(
+    _In_ DWORD IntegrityLevel
+)
+{
+    LPWSTR lpValue = L"Unknown";
+
+    if (IntegrityLevel == SECURITY_MANDATORY_UNTRUSTED_RID) {
+        lpValue = L"Untrusted";
+    }
+    else if (IntegrityLevel == SECURITY_MANDATORY_LOW_RID) {
+        lpValue = L"Low";
+    }
+    else if (IntegrityLevel >= SECURITY_MANDATORY_MEDIUM_RID &&
+        IntegrityLevel < SECURITY_MANDATORY_HIGH_RID)
+    {
+        if (IntegrityLevel == SECURITY_MANDATORY_MEDIUM_PLUS_RID)
+            lpValue = L"MediumPlus";
+        else
+            lpValue = L"Medium";
+    }
+    else if (IntegrityLevel >= SECURITY_MANDATORY_HIGH_RID &&
+        IntegrityLevel < SECURITY_MANDATORY_SYSTEM_RID)
+    {
+        lpValue = L"High";
+    }
+    else if (IntegrityLevel >= SECURITY_MANDATORY_SYSTEM_RID &&
+        IntegrityLevel < SECURITY_MANDATORY_PROTECTED_PROCESS_RID)
+    {
+        lpValue = L"System";
+    }
+    else if (IntegrityLevel >= SECURITY_MANDATORY_PROTECTED_PROCESS_RID)
+    {
+        lpValue = L"ProtectedProcess";
+    }
+
+    return lpValue;
+}
+
+/*
+* supLookupSidUserAndDomain
+*
+* Purpose:
+*
+* Query user and domain name from given sid.
+*
+*/
+BOOL supLookupSidUserAndDomain(
+    _In_ PSID Sid,
+    _Out_ LPWSTR *lpSidUserAndDomain
+)
+{
+    BOOL bResult = FALSE;
+    NTSTATUS Status;
+    ULONG Length;
+    LPWSTR UserAndDomainName = NULL, P;
+    LSA_OBJECT_ATTRIBUTES lobja;
+    LSA_HANDLE PolicyHandle = NULL;
+    PLSA_REFERENCED_DOMAIN_LIST ReferencedDomains = NULL;
+    PLSA_TRANSLATED_NAME Names = NULL;
+    SECURITY_QUALITY_OF_SERVICE SecurityQualityOfService;
+
+    *lpSidUserAndDomain = NULL;
+
+    SecurityQualityOfService.Length = sizeof(SECURITY_QUALITY_OF_SERVICE);
+    SecurityQualityOfService.ImpersonationLevel = SecurityImpersonation;
+    SecurityQualityOfService.ContextTrackingMode = SECURITY_DYNAMIC_TRACKING;
+    SecurityQualityOfService.EffectiveOnly = FALSE;
+
+    InitializeObjectAttributes(
+        &lobja,
+        NULL,
+        0L,
+        NULL,
+        NULL);
+
+    lobja.SecurityQualityOfService = &SecurityQualityOfService;
+
+    if (NT_SUCCESS(LsaOpenPolicy(NULL,
+        (PLSA_OBJECT_ATTRIBUTES)&lobja,
+        POLICY_LOOKUP_NAMES,
+        (PLSA_HANDLE)&PolicyHandle)))
+    {
+        Status = LsaLookupSids(
+            PolicyHandle,
+            1,
+            (PSID*)&Sid,
+            (PLSA_REFERENCED_DOMAIN_LIST*)&ReferencedDomains,
+            (PLSA_TRANSLATED_NAME*)&Names);
+
+        if ((NT_SUCCESS(Status)) && (Status != STATUS_SOME_NOT_MAPPED)) {
+
+            Length = 0;
+
+            if ((ReferencedDomains != NULL) && (Names != NULL)) {
+
+                Length = 4 + ReferencedDomains->Domains[0].Name.MaximumLength +
+                    Names->Name.MaximumLength;
+
+                UserAndDomainName = (LPWSTR)supHeapAlloc(Length);
+                if (UserAndDomainName) {
+                    P = UserAndDomainName;
+                    if (ReferencedDomains->Domains[0].Name.Length) {
+                        RtlCopyMemory(UserAndDomainName,
+                            ReferencedDomains->Domains[0].Name.Buffer,
+                            ReferencedDomains->Domains[0].Name.Length);
+
+                        P = _strcat(UserAndDomainName, TEXT("\\"));
+                    }
+
+                    RtlCopyMemory(P,
+                        Names->Name.Buffer,
+                        Names->Name.Length);
+
+                    *lpSidUserAndDomain = UserAndDomainName;
+                    bResult = TRUE;
+                }
+            }
+            if (ReferencedDomains) LsaFreeMemory(ReferencedDomains);
+            if (Names) LsaFreeMemory(Names);
+        }
+        LsaClose(PolicyHandle);
+    }
+
+    return bResult;
 }

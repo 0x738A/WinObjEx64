@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        05 Mar 2019
+*  DATE:        09 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -46,11 +46,10 @@ VOID PNDlgShowObjectProperties(
 {
     INT                 nSelected;
     LPWSTR              lpType, lpName;
-    POBJREF             objRef;
+    POBJREF             objRef = NULL;
 
     OBJREFPNS           pnsInfo;
     PROP_NAMESPACE_INFO propNamespace;
-    LVITEM              lvitem;
 
     if (g_NamespacePropWindow != NULL)
         return;
@@ -67,13 +66,9 @@ VOID PNDlgShowObjectProperties(
     //
     //  Get ref to object, failure here is critical.
     //
-    RtlSecureZeroMemory(&lvitem, sizeof(lvitem));
-    lvitem.mask = LVIF_PARAM;
-    lvitem.iItem = nSelected;
+    if (!supGetListViewItemParam(PnDlgContext.ListView, nSelected, (PVOID*)&objRef))
+        return;
 
-    ListView_GetItem(PnDlgContext.ListView, &lvitem);
-
-    objRef = (OBJREF*)lvitem.lParam;
     if (objRef == NULL)
         return;
 
@@ -272,49 +267,6 @@ BOOL PNDlgQueryInfo(
 }
 
 /*
-* PNDlgIL2Text
-*
-* Purpose:
-*
-* Translate Integrity Level to name.
-*
-*/
-LPWSTR PNDlgIL2Text(
-    _In_ DWORD dwIL
-)
-{
-    LPWSTR lpValue = L"UnknownIL";
-
-    if (dwIL == SECURITY_MANDATORY_UNTRUSTED_RID) {
-        lpValue = L"UntrustedIL";
-    }
-    else if (dwIL == SECURITY_MANDATORY_LOW_RID) {
-        lpValue = L"LowIL";
-    }
-    else if (dwIL >= SECURITY_MANDATORY_MEDIUM_RID &&
-        dwIL < SECURITY_MANDATORY_HIGH_RID)
-    {
-        lpValue = L"MediumIL";
-    }
-    else if (dwIL >= SECURITY_MANDATORY_HIGH_RID &&
-        dwIL < SECURITY_MANDATORY_SYSTEM_RID)
-    {
-        lpValue = L"HighIL";
-    }
-    else if (dwIL >= SECURITY_MANDATORY_SYSTEM_RID &&
-        dwIL < SECURITY_MANDATORY_PROTECTED_PROCESS_RID)
-    {
-        lpValue = L"SystemIL";
-    }
-    else if (dwIL >= SECURITY_MANDATORY_PROTECTED_PROCESS_RID)
-    {
-        lpValue = L"ProtectedProcessIL";
-    }
-
-    return lpValue;
-}
-
-/*
 * PNDlgOutputSelectedSidInformation
 *
 * Purpose:
@@ -487,7 +439,7 @@ BOOL CALLBACK PNDlgBoundaryDescriptorCallback(
         dwIL = *RtlSubAuthoritySid(Sid,
             (DWORD)(UCHAR)(*RtlSubAuthorityCountSid(Sid) - 1));
 
-        p = PNDlgIL2Text(dwIL);
+        p = supIntegrityToString(dwIL);
 
         _strcpy(szBuffer, p);
         _strcat(szBuffer, L"(0x");
@@ -518,9 +470,8 @@ VOID PNDlgShowNamespaceInfo(
     INT         nSelected;
     LPARAM      nSid;
     ULONG_PTR   BoundaryDescriptorAddress = 0;
-    POBJREF     objRef;
+    POBJREF     objRef = NULL;
     OBJREFPNS   pnsInfo;
-    LVITEM      lvitem;
 
     POBJECT_BOUNDARY_DESCRIPTOR BoundaryDescriptor = NULL;
 
@@ -535,13 +486,9 @@ VOID PNDlgShowNamespaceInfo(
         return;
     }
 
-    RtlSecureZeroMemory(&lvitem, sizeof(lvitem));
-    lvitem.mask = LVIF_PARAM;
-    lvitem.iItem = nSelected;
+    if (!supGetListViewItemParam(PnDlgContext.ListView, nSelected, (PVOID*)&objRef))
+        return;
 
-    ListView_GetItem(PnDlgContext.ListView, &lvitem);
-
-    objRef = (OBJREF*)lvitem.lParam;
     if (objRef == NULL)
         return;
 
@@ -792,8 +739,8 @@ VOID extrasCreatePNDialog(
     _In_ HWND hwndParent
 )
 {
-    RECT     rGB;
     LVCOLUMN col;
+    ENUMCHILDWNDDATA ChildWndData;
 
     //allow only one dialog
     if (g_WinObj.AuxDialogs[wobjPNSDlgId]) {
@@ -859,8 +806,9 @@ VOID extrasCreatePNDialog(
             ListView_SortItemsEx(PnDlgContext.ListView, &PNListCompareFunc, 0);
         }
         else {
-            if (GetWindowRect(PnDlgContext.hwndDlg, &rGB)) {
-                EnumChildWindows(PnDlgContext.hwndDlg, supEnumHideChildWindows, (LPARAM)&rGB);
+            if (GetWindowRect(PnDlgContext.hwndDlg, &ChildWndData.Rect)) {
+                ChildWndData.nCmdShow = SW_HIDE;
+                EnumChildWindows(PnDlgContext.hwndDlg, supCallbackShowChildWindow, (LPARAM)&ChildWndData);
             }
             ShowWindow(GetDlgItem(PnDlgContext.hwndDlg, ID_PNAMESPACESINFO), SW_SHOW);
 

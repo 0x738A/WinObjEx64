@@ -1110,6 +1110,10 @@ VOID propBasicQueryMutant(
     propCloseCurrentObject(Context, hObject);
 }
 
+#ifndef IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG
+#define IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG 17
+#endif
+
 /*
 * propBasicQuerySection
 *
@@ -1131,11 +1135,12 @@ VOID propBasicQuerySection(
     HANDLE    hObject;
     SIZE_T    bytesNeeded;
     LPWSTR    lpType;
-    RECT      rGB;
     WCHAR     szBuffer[MAX_PATH * 2];
 
     SECTION_BASIC_INFORMATION sbi;
     SECTION_IMAGE_INFORMATION sii;
+
+    ENUMCHILDWNDDATA ChildWndData;
 
     SetDlgItemText(hwndDlg, ID_SECTION_ATTR, T_CannotQuery);
     SetDlgItemText(hwndDlg, ID_SECTIONSIZE, T_CannotQuery);
@@ -1224,8 +1229,9 @@ VOID propBasicQuerySection(
             if (NT_SUCCESS(status)) {
 
                 //show hidden controls
-                if (GetWindowRect(GetDlgItem(hwndDlg, ID_IMAGEINFO), &rGB)) {
-                    EnumChildWindows(hwndDlg, supEnumEnableChildWindows, (LPARAM)&rGB);
+                if (GetWindowRect(GetDlgItem(hwndDlg, ID_IMAGEINFO), &ChildWndData.Rect)) {
+                    ChildWndData.nCmdShow = SW_SHOW;
+                    EnumChildWindows(hwndDlg, supCallbackShowChildWindow, (LPARAM)&ChildWndData);
                 }
 
                 //Entry			
@@ -1279,6 +1285,9 @@ VOID propBasicQuerySection(
                     break;
                 case IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION:
                     lpType = TEXT("Windows Boot Application");
+                    break;
+                case IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG:
+                    lpType = TEXT("XBox Code Catalog");
                     break;
                 }
                 SetDlgItemText(hwndDlg, ID_IMAGE_SUBSYSTEM, lpType);
@@ -1372,8 +1381,8 @@ VOID propBasicQueryDriver(
     _In_ HWND hwndDlg
 )
 {
-    RECT    rGB;
-    LPWSTR  lpItemText;
+    LPWSTR lpItemText;
+    ENUMCHILDWNDDATA ChildWndData;
 
     if (Context == NULL) {
         return;
@@ -1386,8 +1395,9 @@ VOID propBasicQueryDriver(
     lpItemText = Context->lpDescription;
     if (lpItemText) {
         //show hidden controls
-        if (GetWindowRect(GetDlgItem(hwndDlg, ID_DRIVERINFO), &rGB)) {
-            EnumChildWindows(hwndDlg, supEnumEnableChildWindows, (LPARAM)&rGB);
+        if (GetWindowRect(GetDlgItem(hwndDlg, ID_DRIVERINFO), &ChildWndData.Rect)) {
+            ChildWndData.nCmdShow = SW_SHOW;
+            EnumChildWindows(hwndDlg, supCallbackShowChildWindow, (LPARAM)&ChildWndData);
         }
         SetDlgItemText(hwndDlg, ID_DRIVERDISPLAYNAME, lpItemText);
     }
@@ -1406,8 +1416,8 @@ VOID propBasicQueryDevice(
     _In_ HWND hwndDlg
 )
 {
-    RECT    rGB;
-    LPWSTR  lpItemText;
+    LPWSTR lpItemText;
+    ENUMCHILDWNDDATA ChildWndData;
 
     if (Context == NULL) {
         return;
@@ -1420,8 +1430,9 @@ VOID propBasicQueryDevice(
     lpItemText = Context->lpDescription;
     if (lpItemText) {
         //show hidden controls
-        if (GetWindowRect(GetDlgItem(hwndDlg, ID_DEVICEINFO), &rGB)) {
-            EnumChildWindows(hwndDlg, supEnumEnableChildWindows, (LPARAM)&rGB);
+        if (GetWindowRect(GetDlgItem(hwndDlg, ID_DEVICEINFO), &ChildWndData.Rect)) {
+            ChildWndData.nCmdShow = SW_SHOW;
+            EnumChildWindows(hwndDlg, supCallbackShowChildWindow, (LPARAM)&ChildWndData);
         }
         SetDlgItemText(hwndDlg, ID_DEVICEDESCRIPTION, lpItemText);
     }

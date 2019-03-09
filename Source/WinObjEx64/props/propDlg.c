@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        09 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -19,6 +19,7 @@
 #include "propBasic.h"
 #include "propType.h"
 #include "propDriver.h"
+#include "propToken.h"
 #include "propProcess.h"
 #include "propDesktop.h"
 #include "propSecurity.h"
@@ -659,6 +660,23 @@ VOID propCreateDialog(
             psp[nPages++] = CreatePropertySheetPage(&Page);
             break;
         }
+    }
+
+    //
+    // Create specific page for Process/Thread objects.
+    //
+    if ((propContext->TypeIndex == ObjectTypeProcess) ||
+        (propContext->TypeIndex == ObjectTypeThread)) 
+    {
+        RtlSecureZeroMemory(&Page, sizeof(Page));
+        Page.dwSize = sizeof(PROPSHEETPAGE);
+        Page.dwFlags = PSP_DEFAULT | PSP_USETITLE;
+        Page.hInstance = g_WinObj.hInstance;
+        Page.pszTemplate = MAKEINTRESOURCE(IDD_DIALOG_TOKEN);
+        Page.pfnDlgProc = TokenPageDialogProc;
+        Page.pszTitle = TEXT("Token");
+        Page.lParam = (LPARAM)propContext;
+        psp[nPages++] = CreatePropertySheetPage(&Page);
     }
 
     //

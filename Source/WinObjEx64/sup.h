@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        07 Mar 2019
+*  DATE:        09 Mar 2019
 *
 *  Common header file for the program support routines.
 *
@@ -73,6 +73,11 @@ typedef struct _PROCESS_MITIGATION_POLICIES_ALL {
 // Conversion buffer size
 //
 #define DBUFFER_SIZE                 512
+
+typedef struct _ENUMCHILDWNDDATA {
+    RECT Rect;
+    INT nCmdShow;
+} ENUMCHILDWNDDATA, *PENUMCHILDWNDDATA;
 
 typedef struct _LANGANDCODEPAGE {
     WORD wLanguage;
@@ -167,12 +172,6 @@ VOID supSetMenuIcon(
     _In_ UINT Item,
     _In_ ULONG_PTR IconData);
 
-VOID supHandleObjectPopupMenu(
-    _In_ HWND hwnd,
-    _In_ HWND hwndlv,
-    _In_ INT iItem,
-    _In_ LPPOINT point);
-
 VOID supSetGotoLinkTargetToolButtonState(
     _In_ HWND hwnd,
     _In_opt_ HWND hwndlv,
@@ -180,9 +179,9 @@ VOID supSetGotoLinkTargetToolButtonState(
     _In_ BOOL bForce,
     _In_ BOOL bForceEnable);
 
-VOID supHandleTreePopupMenu(
-    _In_ HWND hwnd,
-    _In_ LPPOINT point);
+BOOL supIsSymlink(
+    _In_ HWND hwndList,
+    _In_ INT iItem);
 
 VOID supCreateToolbarButtons(
     _In_ HWND hWndToolbar);
@@ -207,14 +206,6 @@ VOID supClipboardCopy(
 BOOL supEnablePrivilege(
     _In_ DWORD PrivilegeName,
     _In_ BOOL fEnable);
-
-BOOL WINAPI supEnumEnableChildWindows(
-    _In_ HWND hwnd,
-    _In_ LPARAM lParam);
-
-BOOL WINAPI supEnumHideChildWindows(
-    _In_ HWND hwnd,
-    _In_ LPARAM lParam);
 
 LPWSTR supGetItemText(
     _In_ HWND ListView,
@@ -296,8 +287,12 @@ ULONG supFindModuleEntryByAddress(
     _In_ PRTL_PROCESS_MODULES pModulesList,
     _In_ PVOID Address);
 
+PVOID supGetTokenInfo(
+    _In_ HANDLE TokenHandle,
+    _In_ TOKEN_INFORMATION_CLASS TokenInformationClass);
+
 PVOID supGetSystemInfo(
-    _In_ SYSTEM_INFORMATION_CLASS InfoClass);
+    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass);
 
 HANDLE supOpenDirectory(
     _In_ LPWSTR lpDirectory);
@@ -487,3 +482,19 @@ BOOL supPrintTimeConverted(
     _In_ PLARGE_INTEGER Time,
     _In_ LPWSTR lpBuffer,
     _In_ SIZE_T cchBuffer);
+
+BOOL supGetListViewItemParam(
+    _In_ HWND hwndListView,
+    _In_ INT itemIndex,
+    _Out_ PVOID *outParam);
+
+BOOL WINAPI supCallbackShowChildWindow(
+    _In_ HWND hwnd,
+    _In_ LPARAM lParam);
+
+LPWSTR supIntegrityToString(
+    _In_ DWORD IntegrityLevel);
+
+BOOL supLookupSidUserAndDomain(
+    _In_ PSID Sid,
+    _Out_ LPWSTR *lpSidUserAndDomain);

@@ -201,6 +201,9 @@
     <ClCompile Include="minirtl\_strchr.c">
       <Filter>minirtl</Filter>
     </ClCompile>
+    <ClCompile Include="props\propToken.c">
+      <Filter>Source Files\props</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -345,6 +348,9 @@
     </ClInclude>
     <ClInclude Include="kldbg_patterns.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="props\propToken.h">
+      <Filter>Source Files\props</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
