@@ -1045,10 +1045,12 @@ UINT WinObjExMain()
     HANDLE                  hToken;
     HIMAGELIST              TreeViewImages;
 
-    if (!supInitNtdllCRT())
-        return ERROR_APP_INIT_FAILURE;
-
     IsWine = supIsWine();
+
+    if (!supInitNtdllCRT(IsWine)) {
+        MessageBox(GetDesktopWindow(), TEXT("Could not initialize CRT"), NULL, MB_ICONERROR);
+        return ERROR_APP_INIT_FAILURE;
+    }
 
     //
     // wine 1.6 xenial does not suport this routine.

@@ -184,7 +184,11 @@ VOID TokenPageListInfo(
     }
 
     if (Context->TypeIndex == ObjectTypeProcess) {
-        Status = NtOpenProcessToken(ObjectHandle, TOKEN_QUERY, &TokenHandle);
+        
+        Status = supOpenProcessTokenEx(ObjectHandle, &TokenHandle);
+        if (!NT_SUCCESS(Status))
+            Status = NtOpenProcessToken(ObjectHandle, TOKEN_QUERY, &TokenHandle);
+        
     }
     else {
         Status = NtOpenThreadToken(ObjectHandle, TOKEN_QUERY, TRUE, &TokenHandle);
@@ -199,7 +203,6 @@ VOID TokenPageListInfo(
         if (pTokenPrivs) {
 
             for (i = 0; i < pTokenPrivs->PrivilegeCount; i++) {
-
 
                 //
                 // Output privilege flags like Process Explorer.

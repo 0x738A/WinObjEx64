@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        07 Mar 2019
+*  DATE:        09 Mar 2019
 *
 *  Common header file for the Windows Object Explorer.
 *
@@ -32,6 +32,7 @@
 #pragma warning(disable: 4091) // 'typedef ': ignored on left of '%s' when no variable is declared
 #pragma warning(disable: 4201) // nameless struct/union
 #pragma warning(disable: 6255 6263) // alloca
+#pragma warning(disable: 6320) // Exception-filter expression is the constant EXCEPTION_EXECUTE_HANDLER.
 
 //
 // Included lib files used by program.

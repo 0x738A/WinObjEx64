@@ -83,64 +83,71 @@ VOID AboutDialogInit(
         _strcat(szBuffer, TEXT(", "));
         _strcat(szBuffer, g_WinObj.osver.szCSDVersion);
     }
-    else {
-        _strcat(szBuffer, TEXT(")"));
-    }
+    _strcat(szBuffer, TEXT(")"));
     SetDlgItemText(hwndDlg, ID_ABOUT_OSNAME, szBuffer);
 
     // fill boot options
     RtlSecureZeroMemory(&szBuffer, sizeof(szBuffer));
-    RtlSecureZeroMemory(&sbei, sizeof(sbei));
+    
+    if (g_kdctx.IsWine) {
 
-    // query kd debugger enabled
-    if (kdIsDebugBoot()) {
-        _strcpy(szBuffer, TEXT("Debug, "));
-    }
+        SetDlgItemTextA(hwndDlg, ID_ABOUT_ADVINFO, wine_get_version());
 
-    // query vhd boot state if possible
-    psvbi = (SYSTEM_VHD_BOOT_INFORMATION*)supHeapAlloc(PAGE_SIZE);
-    if (psvbi) {
-        status = NtQuerySystemInformation(SystemVhdBootInformation, psvbi, PAGE_SIZE, &returnLength);
-        if (NT_SUCCESS(status)) {
-            if (psvbi->OsDiskIsVhd) {
-                _strcat(szBuffer, TEXT("VHD, "));
-            }
-        }
-        supHeapFree(psvbi);
-    }
-
-    // query firmware mode and secure boot state for uefi
-    status = NtQuerySystemInformation(SystemBootEnvironmentInformation, &sbei, sizeof(sbei), &returnLength);
-    if (NT_SUCCESS(status)) {
-        
-        if (sbei.FirmwareType == FirmwareTypeUefi) {
-            _strcat(szBuffer, TEXT("UEFI"));
-        }
-        else {
-            if (sbei.FirmwareType == FirmwareTypeBios) {
-                _strcat(szBuffer, TEXT("BIOS"));
-            }
-            else {
-                _strcat(szBuffer, TEXT("Unknown"));
-            }
-        }
-
-        if (sbei.FirmwareType == FirmwareTypeUefi) {
-            bSecureBoot = FALSE;
-            if (supQuerySecureBootState(&bSecureBoot)) {
-                _strcat(szBuffer, TEXT(" with"));
-                if (bSecureBoot == FALSE) {
-                    _strcat(szBuffer, TEXT("out"));
-                }
-                _strcat(szBuffer, TEXT(" SecureBoot"));
-            }
-            g_kdctx.IsSecureBoot = bSecureBoot;
-        }
     }
     else {
-        _strcpy(szBuffer, TEXT("Unknown"));
+
+        RtlSecureZeroMemory(&sbei, sizeof(sbei));
+
+        // query kd debugger enabled
+        if (kdIsDebugBoot()) {
+            _strcpy(szBuffer, TEXT("Debug, "));
+        }
+
+        // query vhd boot state if possible
+        psvbi = (SYSTEM_VHD_BOOT_INFORMATION*)supHeapAlloc(PAGE_SIZE);
+        if (psvbi) {
+            status = NtQuerySystemInformation(SystemVhdBootInformation, psvbi, PAGE_SIZE, &returnLength);
+            if (NT_SUCCESS(status)) {
+                if (psvbi->OsDiskIsVhd) {
+                    _strcat(szBuffer, TEXT("VHD, "));
+                }
+            }
+            supHeapFree(psvbi);
+        }
+
+        // query firmware mode and secure boot state for uefi
+        status = NtQuerySystemInformation(SystemBootEnvironmentInformation, &sbei, sizeof(sbei), &returnLength);
+        if (NT_SUCCESS(status)) {
+
+            if (sbei.FirmwareType == FirmwareTypeUefi) {
+                _strcat(szBuffer, TEXT("UEFI"));
+            }
+            else {
+                if (sbei.FirmwareType == FirmwareTypeBios) {
+                    _strcat(szBuffer, TEXT("BIOS"));
+                }
+                else {
+                    _strcat(szBuffer, TEXT("Unknown"));
+                }
+            }
+
+            if (sbei.FirmwareType == FirmwareTypeUefi) {
+                bSecureBoot = FALSE;
+                if (supQuerySecureBootState(&bSecureBoot)) {
+                    _strcat(szBuffer, TEXT(" with"));
+                    if (bSecureBoot == FALSE) {
+                        _strcat(szBuffer, TEXT("out"));
+                    }
+                    _strcat(szBuffer, TEXT(" SecureBoot"));
+                }
+                g_kdctx.IsSecureBoot = bSecureBoot;
+            }
+        }
+        else {
+            _strcpy(szBuffer, TEXT("Unknown"));
+        }
+        SetDlgItemText(hwndDlg, ID_ABOUT_ADVINFO, szBuffer);
     }
-    SetDlgItemText(hwndDlg, ID_ABOUT_ADVINFO, szBuffer);
 
     SetFocus(GetDlgItem(hwndDlg, IDOK));
 }

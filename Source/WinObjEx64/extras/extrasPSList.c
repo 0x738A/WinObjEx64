@@ -297,7 +297,7 @@ VOID PsListHandleObjectProp(
         NULL,
         &UnnamedObject);
 
-    if (lpName) supHeapFree(lpName);
+    supHeapFree(lpName);
 }
 
 /*
@@ -572,7 +572,7 @@ BOOLEAN PsListProcessInServicesList(
 HTREEITEM AddProcessEntryTreeList(
     _In_opt_ HTREEITEM RootItem,
     _In_ OBEX_PROCESS_LOOKUP_ENTRY* Entry,
-    _In_ PSYSTEM_HANDLE_INFORMATION_EX HandleList,
+    _In_opt_ PSYSTEM_HANDLE_INFORMATION_EX HandleList,
     _In_ SCMDB *ServicesList,
     _In_ PSID OurSid
 )
@@ -627,22 +627,23 @@ HTREEITEM AddProcessEntryTreeList(
     }
 
     //
-    // EPROCESS value
+    // EPROCESS value (optional)
     //
     szEPROCESS[0] = 0;
-
-    for (r = 0; r < HandleList->NumberOfHandles; r++)
-        if (HandleList->Handles[r].UniqueProcessId == (ULONG_PTR)CurrentProcessId) {
-            if (HandleList->Handles[r].HandleValue == (ULONG_PTR)Entry->hProcess) {
-                ObjectAddress = (ULONG_PTR)HandleList->Handles[r].Object;
-                break;
+    if (HandleList) {
+        for (r = 0; r < HandleList->NumberOfHandles; r++)
+            if (HandleList->Handles[r].UniqueProcessId == (ULONG_PTR)CurrentProcessId) {
+                if (HandleList->Handles[r].HandleValue == (ULONG_PTR)Entry->hProcess) {
+                    ObjectAddress = (ULONG_PTR)HandleList->Handles[r].Object;
+                    break;
+                }
             }
-        }
 
-    if (ObjectAddress) {
-        szEPROCESS[0] = L'0';
-        szEPROCESS[1] = L'x';
-        u64tohex(ObjectAddress, &szEPROCESS[2]);
+        if (ObjectAddress) {
+            szEPROCESS[0] = L'0';
+            szEPROCESS[1] = L'x';
+            u64tohex(ObjectAddress, &szEPROCESS[2]);
+        }
     }
 
     subitems.UserParam = (PVOID)Entry->EntryPtr;
@@ -956,8 +957,6 @@ VOID CreateProcessTreeList()
         } while (NextEntryDelta);
 
         pHandles = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation);
-        if (pHandles == NULL)
-            __leave;
 
         //
         // Output all process entries.

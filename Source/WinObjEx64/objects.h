@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        04 Mar 2019
+*  DATE:        09 Mar 2019
 *
 *  Header file for internal Windows object types handling.
 *
@@ -92,12 +92,6 @@ typedef struct _WOBJ_TYPE_DESC {
     INT ImageIndex; //individual image id for each object type (maybe the same for few objects)
 } WOBJ_TYPE_DESC, *PWOBJ_TYPE_DESC;
 
-//
-// ImageList icon index used from range TYPE_FIRST - TYPE_LAST
-//
-#define TYPE_FIRST 0
-#define TYPE_LAST ObjectTypeUnknown
-
 #define OBTYPE_NAME_DESKTOP         L"Desktop"
 #define OBTYPE_NAME_DEVICE          L"Device"
 #define OBTYPE_NAME_DRIVER          L"Driver"
@@ -159,6 +153,7 @@ static WOBJ_TYPE_DESC g_ObjectTypes[] = {
     { L"KeyedEvent", ObjectTypeKeyedEvent, IDI_ICON_KEYEDEVENT, IDS_DESC_KEYEDEVENT },
     { L"Mutant", ObjectTypeMutant, IDI_ICON_MUTANT, IDS_DESC_MUTANT },
     //{ L"NdisCmState", ObjectTypeNdisCmState, IDI_ICON_NDISCMSTATE, IDS_DESC_NDISCMSTATE },
+    { L"ObjectType", ObjectTypeType, IDI_ICON_TYPE, IDS_DESC_TYPE }, //Wine 4.x
     { L"Partition", ObjectTypeMemoryPartition, IDI_ICON_MEMORYPARTITION, IDS_DESC_MEMORY_PARTITION },
     { L"PcwObject", ObjectTypePcwObject, IDI_ICON_PCWOBJECT, IDS_DESC_PCWOBJECT },
     { L"PowerRequest", ObjectTypePowerRequest, IDI_ICON_POWERREQUEST, IDS_DESC_POWERREQUEST },
@@ -189,6 +184,13 @@ static WOBJ_TYPE_DESC g_ObjectTypes[] = {
     { OBTYPE_NAME_WINSTATION, ObjectTypeWinstation, IDI_ICON_WINSTATION, IDS_DESC_WINSTATION },
     { L"WmiGuid", ObjectTypeWMIGuid, IDI_ICON_WMIGUID, IDS_DESC_WMIGUID }
 };
+
+//
+// ImageList icon index used from range TYPE_FIRST - TYPE_LAST
+//
+#define TYPE_FIRST 0
+#define TYPE_LAST RTL_NUMBER_OF(g_ObjectTypes)
+
 
 HIMAGELIST ObManagerLoadImageList(
     VOID);

@@ -22,8 +22,10 @@
 #include <setupapi.h>
 
 #define T_DEVICE_PROCEXP152 L"\\Device\\ProcExp152"
+#define PE_DEVICE_TYPE 0x8335
 
-#define IOCTL_PE_OPEN_PROCESS CTL_CODE(0x8335, 0xF, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_PE_OPEN_PROCESS_TOKEN     CTL_CODE(PE_DEVICE_TYPE, 0x3, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_PE_OPEN_PROCESS           CTL_CODE(PE_DEVICE_TYPE, 0xF, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 typedef struct _SAPIDB {
     LIST_ENTRY ListHead;
@@ -96,7 +98,8 @@ extern POBJECT_TYPES_INFORMATION g_pObjectTypesInfo;
 
 #define PathFileExists(lpszPath) (GetFileAttributes(lpszPath) != (DWORD)-1)
 
-BOOL supInitNtdllCRT();
+BOOL supInitNtdllCRT(
+    _In_ BOOL IsWine);
 
 #ifndef _DEBUG
 FORCEINLINE PVOID supHeapAlloc(
@@ -464,6 +467,7 @@ PVOID supBSearch(
         _In_ PCVOID elt
         ));
 
+_Success_(return != FALSE)
 BOOL supGetProcessDepState(
     _In_ HANDLE hProcess,
     _Out_ PPROCESS_MITIGATION_DEP_POLICY DepPolicy);
@@ -477,6 +481,10 @@ BOOL supGetProcessMitigationPolicy(
 NTSTATUS supOpenProcessEx(
     _In_ HANDLE UniqueProcessId,
     _Out_ PHANDLE ProcessHandle);
+
+NTSTATUS supOpenProcessTokenEx(
+    _In_ HANDLE ProcessHandle,
+    _Out_ PHANDLE TokenHandle);
 
 BOOL supPrintTimeConverted(
     _In_ PLARGE_INTEGER Time,

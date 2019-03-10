@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        09 Mar 2019
 *
 *  Test code used while debug.
 *
@@ -27,6 +27,8 @@ HANDLE g_TestMailslot = NULL;
 HANDLE g_DebugObject = NULL;
 HANDLE g_TestJob = NULL;
 HDESK g_TestDesktop = NULL;
+HANDLE g_TestThread = NULL;
+
 
 VOID TestApiPort(
     VOID
@@ -478,6 +480,36 @@ VOID TestDesktop(
     }
 }
 
+DWORD WINAPI TokenImpersonationThreadProc(PVOID Parameter)
+{
+
+    ULONG i = 0;
+    HANDLE hToken;
+
+    UNREFERENCED_PARAMETER(Parameter);
+
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken)) {
+        if (!ImpersonateLoggedOnUser(hToken))
+            Beep(0, 0);
+        CloseHandle(hToken);
+    }
+
+    do {
+        Sleep(1000);
+        OutputDebugString(TEXT("WinObjEx64 test thread\r\n"));
+        i += 1;
+    } while (i < 100);
+
+    if (!RevertToSelf())
+        Beep(0, 0);
+    ExitThread(0);
+}
+
+VOID TestThread()
+{
+    DWORD tid;
+    g_TestThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)TokenImpersonationThreadProc, NULL, 0, &tid);
+}
 
 VOID TestCall()
 {
@@ -500,6 +532,7 @@ VOID TestStart(
     TestTimer();
     TestTransaction();
     TestWinsta();
+    TestThread();
     //TestJob();
 }
 
@@ -526,5 +559,9 @@ VOID TestStop(
     }
     if (g_TestDesktop) {
         CloseDesktop(g_TestDesktop);
+    }
+    if (g_TestThread) {
+        TerminateThread(g_TestThread, 0);
+        CloseHandle(g_TestThread);
     }
 }

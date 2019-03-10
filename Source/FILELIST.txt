@@ -78,6 +78,9 @@ propSecurity.c - "Security" property sheet handler and ISecurityInformation impl
 propSecurity.h
 propSecurityConsts.h - object type access values, generic mappings here
 
+propToken.c - property sheet "Token" handler, window procedure
+propToken.h
+
 propType.c - property sheet "Type" handlers, including window procedure for "Procedures" sheet
 propType.h
 propTypeConsts.h - known object access rights converted to strings listed here

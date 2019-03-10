@@ -50,19 +50,29 @@ ULONG g_cHeapAlloc = 0;
 *
 * Purpose:
 *
-* Init ntdll ms crt routines.
+* Init ms crt routines.
 *
 */
-BOOL supInitNtdllCRT()
+BOOL supInitNtdllCRT(
+    _In_ BOOL IsWine
+)
 {
-    HMODULE ntdll = GetModuleHandle(TEXT("ntdll.dll"));
-    if (ntdll) {
-        rtl_swprintf_s = (pswprintf_s)GetProcAddress(ntdll, "swprintf_s");
+    HMODULE hdll;
+    
+    if (IsWine) {
+        hdll = GetModuleHandle(TEXT("msvcrt.dll"));
+        if (hdll == NULL)
+            hdll = LoadLibraryEx(TEXT("msvcrt.dll"), NULL, 0);
+    }
+    else {
+        hdll = GetModuleHandle(TEXT("ntdll.dll"));
     }
 
-    if (rtl_swprintf_s == NULL) return FALSE;
+    if (hdll) {
+        rtl_swprintf_s = (pswprintf_s)GetProcAddress(hdll, "swprintf_s");
+    }
 
-    return TRUE;
+    return (rtl_swprintf_s != NULL);
 }
 
 /*
@@ -3162,18 +3172,7 @@ BOOL supIsWine(
     VOID
 )
 {
-    HMODULE hNtdll;
-    FARPROC  WineVersion = NULL;
-
-    hNtdll = GetModuleHandle(TEXT("ntdll.dll"));
-
-    if (hNtdll) {
-        WineVersion = (FARPROC)GetProcAddress(hNtdll, "wine_get_version");
-        if (WineVersion != NULL)
-            return TRUE;
-    }
-
-    return FALSE;
+    return (is_wine() == 1);
 }
 
 /*
@@ -4597,6 +4596,7 @@ BOOL supGetProcessMitigationPolicy(
 * Query DEP state for process from ProcessExecuteFlags.
 *
 */
+_Success_(return != FALSE)
 BOOL supGetProcessDepState(
     _In_ HANDLE hProcess,
     _Out_ PPROCESS_MITIGATION_DEP_POLICY DepPolicy
@@ -4633,28 +4633,27 @@ BOOL supGetProcessDepState(
 }
 
 /*
-* supOpenProcessEx
+* supDeviceIoControlProcExp
 *
 * Purpose:
 *
-* Open process via SysInternals Process Explorer driver.
-*
-* Return process handle with PROCESS_ALL_ACCESS desired access.
+* Send request to Process Explorer driver.
 *
 */
-NTSTATUS supOpenProcessEx(
-    _In_ HANDLE UniqueProcessId,
-    _Out_ PHANDLE ProcessHandle
+NTSTATUS supDeviceIoControlProcExp(
+    _In_ ULONG IoControlCode,
+    _In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+    _In_ ULONG InputBufferLength,
+    _Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
+    _In_ ULONG OutputBufferLength
 )
 {
     NTSTATUS status;
-    HANDLE deviceHandle = NULL, processHandle = NULL;
+    HANDLE deviceHandle = NULL;
 
     UNICODE_STRING usDevName = RTL_CONSTANT_STRING(T_DEVICE_PROCEXP152);
     OBJECT_ATTRIBUTES obja;
     IO_STATUS_BLOCK iost;
-
-    *ProcessHandle = NULL;
 
     if (g_kdctx.IsFullAdmin == FALSE)
         return STATUS_ACCESS_DENIED;
@@ -4675,24 +4674,87 @@ NTSTATUS supOpenProcessEx(
         0);
 
     if (NT_SUCCESS(status)) {
-        
+
         status = NtDeviceIoControlFile(
             deviceHandle,
             NULL,
             NULL,
             NULL,
             &iost,
-            (ULONG)IOCTL_PE_OPEN_PROCESS,
-            (PVOID)&UniqueProcessId,
-            sizeof(UniqueProcessId),
-            (PVOID)&processHandle,
-            sizeof(processHandle));
-
-        if (NT_SUCCESS(status))
-            *ProcessHandle = processHandle;
+            IoControlCode,
+            InputBuffer,
+            InputBufferLength,
+            OutputBuffer,
+            OutputBufferLength);
 
         NtClose(deviceHandle);
     }
+    return status;
+}
+
+/*
+* supOpenProcessEx
+*
+* Purpose:
+*
+* Open process via SysInternals Process Explorer driver.
+*
+* Desired access: PROCESS_ALL_ACCESS
+*
+*/
+NTSTATUS supOpenProcessEx(
+    _In_ HANDLE UniqueProcessId,
+    _Out_ PHANDLE ProcessHandle
+)
+{
+    NTSTATUS status;
+    HANDLE processHandle = NULL;
+
+    *ProcessHandle = NULL;
+
+    status = supDeviceIoControlProcExp(
+        (ULONG)IOCTL_PE_OPEN_PROCESS,
+        (PVOID)&UniqueProcessId,
+        sizeof(UniqueProcessId),
+        (PVOID)&processHandle,
+        sizeof(processHandle));
+
+    if (NT_SUCCESS(status))
+        *ProcessHandle = processHandle;
+
+    return status;
+}
+
+/*
+* supOpenProcessTokenEx
+*
+* Purpose:
+*
+* Open process token via SysInternals Process Explorer driver.
+*
+* Desired access: TOKEN_QUERY
+*
+*/
+NTSTATUS supOpenProcessTokenEx(
+    _In_ HANDLE ProcessHandle,
+    _Out_ PHANDLE TokenHandle
+)
+{
+    NTSTATUS status;
+    HANDLE tokenHandle = NULL;
+
+    *TokenHandle = NULL;
+
+    status = supDeviceIoControlProcExp(
+        (ULONG)IOCTL_PE_OPEN_PROCESS_TOKEN,
+        (PVOID)&ProcessHandle,
+        sizeof(ProcessHandle),
+        (PVOID)&tokenHandle,
+        sizeof(tokenHandle));
+
+    if (NT_SUCCESS(status))
+        *TokenHandle = tokenHandle;
+
     return status;
 }
 
@@ -4716,26 +4778,29 @@ BOOL supPrintTimeConverted(
     if ((Time == NULL) || (lpBuffer == NULL)) return 0;
     if (cchBuffer == 0) return 0;
 
-    FileTimeToLocalFileTime((PFILETIME)Time, (PFILETIME)&ConvertedTime);
-    RtlSecureZeroMemory(&TimeFields, sizeof(TimeFields));
-    RtlTimeToTimeFields((PLARGE_INTEGER)&ConvertedTime, (PTIME_FIELDS)&TimeFields);
+    RtlSecureZeroMemory(&ConvertedTime, sizeof(ConvertedTime));
+    if (FileTimeToLocalFileTime((PFILETIME)Time, (PFILETIME)&ConvertedTime)) {
+        RtlSecureZeroMemory(&TimeFields, sizeof(TimeFields));
+        RtlTimeToTimeFields((PLARGE_INTEGER)&ConvertedTime, (PTIME_FIELDS)&TimeFields);
 
-    if (TimeFields.Month - 1 < 0) TimeFields.Month = 1;
-    if (TimeFields.Month > 12) TimeFields.Month = 12;
+        if (TimeFields.Month - 1 < 0) TimeFields.Month = 1;
+        if (TimeFields.Month > 12) TimeFields.Month = 12;
 
-    rtl_swprintf_s(
-        lpBuffer, 
-        cchBuffer, 
-        FORMATTED_TIME_DATE_VALUE,
-        TimeFields.Hour,
-        TimeFields.Minute,
-        TimeFields.Second,
-        TimeFields.Day,
-        g_szMonths[TimeFields.Month - 1],
-        TimeFields.Year);
+        rtl_swprintf_s(
+            lpBuffer,
+            cchBuffer,
+            FORMATTED_TIME_DATE_VALUE,
+            TimeFields.Hour,
+            TimeFields.Minute,
+            TimeFields.Second,
+            TimeFields.Day,
+            g_szMonths[TimeFields.Month - 1],
+            TimeFields.Year);
 
-    return 1;
+        return 1;
+    }
 
+    return 0;
 }
 
 /*
@@ -4753,6 +4818,8 @@ BOOL supGetListViewItemParam(
 )
 {
     LVITEM lvitem;
+
+    *outParam = NULL;
 
     lvitem.mask = LVIF_PARAM;
     lvitem.iItem = itemIndex;
