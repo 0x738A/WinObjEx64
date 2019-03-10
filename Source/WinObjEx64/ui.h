@@ -141,11 +141,6 @@ typedef struct _VALUE_DESC {
     DWORD dwValue;
 } VALUE_DESC, *PVALUE_DESC;
 
-typedef struct _PROCEDURE_DESC {
-    LPWSTR lpDescription;
-    PVOID Procedure;
-} PROCEDURE_DESC, *PPROCEDURE_DESC;
-
 //Constants
 //Display simple "-" if no info available
 #define T_CannotQuery	TEXT("-")

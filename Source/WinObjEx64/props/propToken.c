@@ -92,12 +92,9 @@ VOID TokenPageInitControls(
     lvg.uAlign = LVGA_HEADER_LEFT;
     SendMessage(g_hwndTokenPageList, LVM_INSERTGROUP, 0, (LPARAM)&lvg);
 
-    lvg.cbSize = sizeof(LVGROUP);
-    lvg.mask = LVGF_HEADER | LVGF_ALIGN | LVGF_GROUPID;
     lvg.pszHeader = TEXT("Privileges");
     lvg.cchHeader = (INT)_strlen(lvg.pszHeader);
     lvg.iGroupId = 1;
-    lvg.uAlign = LVGA_HEADER_LEFT;
     SendMessage(g_hwndTokenPageList, LVM_INSERTGROUP, 0, (LPARAM)&lvg);
 }
 
@@ -220,8 +217,7 @@ VOID TokenPageListInfo(
                     _strcpy(szBuffer, ElementName);
 
                     if (pTokenPrivs->Privileges[i].Attributes & SE_PRIVILEGE_ENABLED_BY_DEFAULT) {
-                        _strcat(szBuffer, TEXT(", "));
-                        _strcat(szBuffer, TEXT("Default Enabled"));
+                        _strcat(szBuffer, TEXT(", Default Enabled"));
                     }
 
                     TokenPageListAdd(1, szPrivName, szBuffer);
@@ -388,8 +384,6 @@ VOID TokenPageListInfo(
 * WM_INITDIALOG - Initialize listview, set window prop with context,
 * collect token info and fill list.
 *
-* WM_DESTROY - Free image list and remove window prop.
-*
 */
 INT_PTR CALLBACK TokenPageDialogProc(
     _In_  HWND hwndDlg,
@@ -405,22 +399,13 @@ INT_PTR CALLBACK TokenPageDialogProc(
 
     switch (uMsg) {
 
-    case WM_DESTROY:
-        RemoveProp(hwndDlg, T_PROPCONTEXT);
-        RemoveProp(hwndDlg, T_DLGCONTEXT);
-        break;
-
     case WM_INITDIALOG:
-
         pSheet = (PROPSHEETPAGE *)lParam;
         if (pSheet) {
             Context = (PROP_OBJECT_INFO *)pSheet->lParam;
-            SetProp(hwndDlg, T_PROPCONTEXT, (HANDLE)Context);
             TokenPageListInfo(Context, hwndDlg);
         }
         return 1;
-        break;
-
     }
     return 0;
 }
