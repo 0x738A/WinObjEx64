@@ -4,12 +4,11 @@
 *
 *  TITLE:       TREELIST.C
 *
-*  VERSION:     1.24
+*  VERSION:     1.25
 *
-*  DATE:        03 Feb 2019
+*  DATE:        11 Mar 2019
 *
 *  TreeList control.
-*  TreeList is a compound control with container box. Catch messages in containter wndproc.
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -39,7 +38,7 @@ VOID AddTooltipItemSub(
     LPRECT rect
 )
 {
-    TOOLINFO	tool;
+    TOOLINFO    tool;
     RtlSecureZeroMemory(&tool, sizeof(tool));
 
 #ifdef UNICODE
@@ -140,8 +139,9 @@ LRESULT TreeListCustomDraw(
     LONG                i, ColumnCount, cx;
     PTL_SUBITEMS        subitem;
     HGDIOBJ             prev;
-    BOOL                ItemSelected;
+    BOOL                ItemSelected, first_iter = TRUE;
     HIMAGELIST          ImgList;
+    HTREEITEM           iparent;
 
     if ((pdraw->nmcd.dwDrawStage & CDDS_ITEM) == 0)
         return CDRF_NOTIFYITEMDRAW;
@@ -157,14 +157,39 @@ LRESULT TreeListCustomDraw(
     TreeView_GetItem(pdraw->nmcd.hdr.hwndFrom, &item);
     subitem = (PTL_SUBITEMS)item.lParam;
 
-    RtlSecureZeroMemory(&hr, sizeof(hr));
     TreeView_GetItemRect(pdraw->nmcd.hdr.hwndFrom, (HTREEITEM)pdraw->nmcd.dwItemSpec, &ir, TRUE);
-
     ImgList = TreeView_GetImageList(pdraw->nmcd.hdr.hwndFrom, TVSIL_NORMAL);
-    if (ImgList != NULL)
-    {
-        ImageList_Draw(ImgList, item.iImage, pdraw->nmcd.hdc, ir.left - 18, ir.top, ILD_NORMAL);
+
+    iparent = (HTREEITEM)pdraw->nmcd.dwItemSpec;
+    cx = ir.left - 11;
+
+    while (iparent != NULL) {
+
+        if (TreeView_GetNextSibling(pdraw->nmcd.hdr.hwndFrom, iparent) == NULL)
+        {
+            if (first_iter)
+            {
+                for (i = 0; i < (ir.bottom - ir.top) / 2; i += 2)
+                    SetPixel(pdraw->nmcd.hdc, cx, ir.top + i, 0xe0b0b0);
+            }
+        }
+        else
+        {
+            for (i = ir.top; i < ir.bottom; i += 2)
+                SetPixel(pdraw->nmcd.hdc, cx, i, 0xe0b0b0);
+        }
+
+        first_iter = FALSE;
+        cx -= 19;
+        iparent = TreeView_GetParent(pdraw->nmcd.hdr.hwndFrom, iparent);
     }
+
+    cx = 1 + ir.top + (ir.bottom - ir.top) / 2;
+    for (i = ir.left - 11; i < ir.left; i += 2)
+        SetPixel(pdraw->nmcd.hdc, i, cx, 0xe0b0b0);
+
+    if (ImgList != NULL)
+        ImageList_Draw(ImgList, item.iImage, pdraw->nmcd.hdc, ir.left - 18, ir.top, ILD_NORMAL);
 
     if (item.cChildren == 1) // msdn: The item has one or more child items.
     {
@@ -188,6 +213,7 @@ LRESULT TreeListCustomDraw(
         else
             i = GLPS_OPENED;
 
+        FillRect(pdraw->nmcd.hdc, &subr, WHITE_BRUSH);
         DrawThemeBackground(tl_theme, pdraw->nmcd.hdc, TVP_GLYPH, i, &subr, NULL);
     }
 
@@ -707,8 +733,8 @@ LRESULT CALLBACK TreeListWindowProc(
             }
             /* break to DefWindowProc */
             break;
-        } 
-        
+        }
+
         if (hdr->hdr.hwndFrom == HeaderControl) {
             switch (hdr->hdr.code) {
             case HDN_ITEMCHANGED:
@@ -720,7 +746,6 @@ LRESULT CALLBACK TreeListWindowProc(
                 break;
             }
         }
-
         break;
 
     case WM_HSCROLL:
