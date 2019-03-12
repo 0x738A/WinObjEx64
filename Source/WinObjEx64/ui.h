@@ -110,11 +110,12 @@ typedef struct _PROP_NAMESPACE_INFO {
 } PROP_NAMESPACE_INFO, *PPROP_NAMESPACE_INFO;
 
 typedef struct _PROP_UNNAMED_OBJECT_INFO {
+    SIZE_T DataSize;
     ULONG_PTR ObjectAddress;
     union {
         PSYSTEM_PROCESSES_INFORMATION Process;
         PSYSTEM_THREAD_INFORMATION Thread;
-        PVOID ObjectPointer;
+        PVOID DataPointer;
     };
 } PROP_UNNAMED_OBJECT_INFO, *PPROP_UNNAMED_OBJECT_INFO;
 

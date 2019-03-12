@@ -96,6 +96,7 @@ treelist.c - systreeview32 combined with sysheader32 control
 treelist.h
 
 wine.h - wine support header file
+wine.c
 
 global.h - global include file
 ntos.h - os internals related definitions and prototypes

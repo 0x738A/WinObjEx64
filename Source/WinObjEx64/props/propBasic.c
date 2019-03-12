@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -1957,7 +1957,7 @@ VOID propBasicQueryAlpcPort(
 
         _strcat(szBuffer, TEXT(" ("));
 
-        ProcessList = supGetSystemInfo(SystemProcessInformation);
+        ProcessList = supGetSystemInfo(SystemProcessInformation, NULL);
         if (ProcessList) {
 
             if (!supQueryProcessNameByEPROCESS(
@@ -2124,7 +2124,7 @@ VOID propBasicQueryJob(
             // If any present then output processes in the list.
             //
             if (pJobProcList->NumberOfProcessIdsInList > 0) {
-                ProcessList = supGetSystemInfo(SystemProcessInformation);
+                ProcessList = supGetSystemInfo(SystemProcessInformation, NULL);
                 if (ProcessList) {
                     for (i = 0; i < pJobProcList->NumberOfProcessIdsInList; i++) {
                         ProcessId = pJobProcList->ProcessIdList[i];

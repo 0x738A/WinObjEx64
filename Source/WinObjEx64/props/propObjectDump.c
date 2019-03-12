@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        07 Mar 2019
+*  DATE:        11 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -1114,7 +1114,7 @@ VOID propObDumpDriverObject(
             &subitems);
 
         RtlSecureZeroMemory(&ntosEntry, sizeof(ntosEntry));
-        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
 
         if (g_kdctx.IopInvalidDeviceRequest == NULL)
             g_kdctx.IopInvalidDeviceRequest = kdQueryIopInvalidDeviceRequest();
@@ -2472,7 +2472,7 @@ VOID propObDumpObjectType(
         //
         // Get loaded modules list.
         //
-        ModulesList = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        ModulesList = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (ModulesList == NULL)
             break;
 
@@ -2860,7 +2860,7 @@ VOID propObDumpFltServerPort(
             return;
         }
 
-        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (pModules == NULL) {
             propObDumpShowError(hwndDlg, NULL);
             return;
@@ -3447,7 +3447,7 @@ VOID propObDumpCallback(
     //
     // Create a snapshot list of loaded modules.
     //
-    Modules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+    Modules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
     if (Modules == NULL) {
         propObDumpShowError(hwndDlg, NULL);
         return;

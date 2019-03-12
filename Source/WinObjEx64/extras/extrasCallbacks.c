@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -2888,7 +2888,7 @@ VOID CallbacksList(
 
     __try {
 
-        Modules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        Modules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (Modules == NULL) {
             MessageBox(hwndDlg, TEXT("Could not allocate memory for modules list."), NULL, MB_ICONERROR);
             __leave;

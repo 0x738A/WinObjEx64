@@ -422,6 +422,7 @@
     <ClCompile Include="sup.c" />
     <ClCompile Include="tests\testunit.c" />
     <ClCompile Include="treelist\treelist.c" />
+    <ClCompile Include="wine.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />

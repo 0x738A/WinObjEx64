@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        09 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -343,7 +343,7 @@ BOOL supQueryObjectFromHandle(
         return bFound;
     }
 
-    pHandles = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation);
+    pHandles = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation, NULL);
     if (pHandles) {
         for (i = 0; i < pHandles->NumberOfHandles; i++) {
             if (pHandles->Handles[i].UniqueProcessId == (ULONG_PTR)CurrentProcessId) {
@@ -752,14 +752,15 @@ PVOID supGetTokenInfo(
 *
 */
 PVOID supGetSystemInfo(
-    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass
+    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass,
+    _Out_opt_ PULONG ReturnLength
 )
 {
     INT         c = 0;
     PVOID       Buffer = NULL;
     ULONG       Size = 0x1000;
     NTSTATUS    status;
-    ULONG       memIO;
+    ULONG       memIO = 0;
 
     do {
         Buffer = supHeapAlloc((SIZE_T)Size);
@@ -782,12 +783,18 @@ PVOID supGetSystemInfo(
     } while (status == STATUS_INFO_LENGTH_MISMATCH);
 
     if (NT_SUCCESS(status)) {
+        if (ReturnLength)
+            *ReturnLength = memIO;
         return Buffer;
     }
 
     if (Buffer) {
         supHeapFree(Buffer);
     }
+
+    if (ReturnLength)
+        *ReturnLength = 0;
+
     return NULL;
 }
 
@@ -1747,7 +1754,7 @@ BOOL supQueryProcessNameByEPROCESS(
         //
         // Lookup this handles in system handle list.
         //
-        pHandles = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation);
+        pHandles = (PSYSTEM_HANDLE_INFORMATION_EX)supGetSystemInfo(SystemExtendedHandleInformation, NULL);
         if (pHandles) {
             for (i = 0; i < pHandles->NumberOfHandles; i++)
                 if (pHandles->Handles[i].UniqueProcessId == (ULONG_PTR)CurrentProcessId) //current process id
@@ -3705,7 +3712,7 @@ BOOL supRunAsLocalSystem(
     InitializeObjectAttributes(&obja, NULL, 0, NULL, NULL);
     obja.SecurityQualityOfService = &sqos;
 
-    ProcessList = supGetSystemInfo(SystemProcessInformation);
+    ProcessList = supGetSystemInfo(SystemProcessInformation, NULL);
     if (ProcessList == NULL)
         return FALSE;
 

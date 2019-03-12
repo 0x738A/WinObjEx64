@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        06 Mar 2019
+*  DATE:        12 Mar 2019
 *
 *  MINIMUM SUPPORTED OS WINDOWS 7
 *
@@ -2746,7 +2746,7 @@ DWORD WINAPI kdQuerySystemInformation(
 
     do {
 
-        miSpace = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        miSpace = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (miSpace == NULL)
             break;
 

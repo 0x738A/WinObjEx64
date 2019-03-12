@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        09 Mar 2019
+*  DATE:        12 Mar 2019
 *
 *  Common header file for the program support routines.
 *
@@ -43,6 +43,7 @@ typedef struct _ENUMICONINFO {
 } ENUMICONINFO, *PENUMICONINFO;
 
 typedef struct _OBEX_PROCESS_LOOKUP_ENTRY {
+    ULONG EntrySize;
     HANDLE hProcess;
     union {
         PUCHAR EntryPtr;
@@ -295,7 +296,8 @@ PVOID supGetTokenInfo(
     _In_ TOKEN_INFORMATION_CLASS TokenInformationClass);
 
 PVOID supGetSystemInfo(
-    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass);
+    _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass,
+    _Out_opt_ PULONG ReturnLength);
 
 HANDLE supOpenDirectory(
     _In_ LPWSTR lpDirectory);

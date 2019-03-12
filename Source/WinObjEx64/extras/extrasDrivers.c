@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        02 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -234,7 +234,7 @@ VOID DrvListDrivers(
         ListView_DeleteAllItems(DrvDlgContext.ListView);
 
     do {
-        pModulesList = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        pModulesList = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (pModulesList == NULL)
             break;
 

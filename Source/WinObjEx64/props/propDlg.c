@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        09 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -133,7 +133,7 @@ BOOL propOpenCurrentObject(
     // Objects without name must be handled in a special way.
     //
     if (Context->IsUnnamedObject) {
-        if (Context->UnnamedObjectInfo.ObjectPointer == NULL) {
+        if (Context->UnnamedObjectInfo.DataPointer == NULL) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return bResult;
         }
@@ -396,9 +396,14 @@ VOID propContextDestroy(
         if (Context->lpDescription) {
             supHeapFree(Context->lpDescription);
         }
-
+        //free boundary descriptor
         if (Context->NamespaceInfo.BoundaryDescriptor) {
             supHeapFree(Context->NamespaceInfo.BoundaryDescriptor);
+        }
+        //free unnamed object info
+        if (Context->IsUnnamedObject) {
+            if (Context->UnnamedObjectInfo.DataPointer)
+                supHeapFree(Context->UnnamedObjectInfo.DataPointer);
         }
 
         //free context itself
@@ -542,10 +547,15 @@ VOID propCreateDialog(
     //
     if (UnnamedObject) {
         propContext->IsUnnamedObject = TRUE;
-        RtlCopyMemory(
-            &propContext->UnnamedObjectInfo,
-            UnnamedObject,
-            sizeof(PROP_UNNAMED_OBJECT_INFO));
+
+        propContext->UnnamedObjectInfo.ObjectAddress = UnnamedObject->ObjectAddress;
+        propContext->UnnamedObjectInfo.DataPointer = supHeapAlloc(UnnamedObject->DataSize);
+        if (propContext->UnnamedObjectInfo.DataPointer) {
+            propContext->UnnamedObjectInfo.DataSize = UnnamedObject->DataSize;
+            RtlCopyMemory(propContext->UnnamedObjectInfo.DataPointer,
+                UnnamedObject->DataPointer,
+                UnnamedObject->DataSize);
+        }
     }
 
     //

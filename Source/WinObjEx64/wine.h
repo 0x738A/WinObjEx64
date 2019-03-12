@@ -24,30 +24,5 @@
 
 typedef char* (__cdecl *pwine_get_version)(void);
 
-static const char *wine_get_version(void)
-{
-    pwine_get_version pfn;
-    HMODULE hmod;
-
-    hmod = GetModuleHandle(TEXT("ntdll.dll"));
-    if (hmod) {
-        pfn = (pwine_get_version)GetProcAddress(hmod, "wine_get_version");
-        if (pfn)
-            return pfn();
-    }
-    return NULL;
-}
-
-static int is_wine(void)
-{
-    pwine_get_version pfn;
-    HMODULE hmod;
-
-    hmod = GetModuleHandle(TEXT("ntdll.dll"));
-    if (hmod) {
-        pfn = (pwine_get_version)GetProcAddress(hmod, "wine_get_version");
-        if (pfn)
-            return 1;
-    }
-    return 0;
-}
+const char *wine_get_version(void);
+int is_wine(void);

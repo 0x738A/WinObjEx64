@@ -6,7 +6,7 @@
 *
 *  VERSION:     1.73
 *
-*  DATE:        03 Mar 2019
+*  DATE:        12 Mar 2019
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -487,7 +487,7 @@ VOID SdtListTable(
             }
         }
 
-        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (pModules == NULL)
             __leave;
 
@@ -910,7 +910,7 @@ VOID SdtListTableShadow(
         //
         // Query modules list.
         //
-        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation);
+        pModules = (PRTL_PROCESS_MODULES)supGetSystemInfo(SystemModuleInformation, NULL);
         if (pModules == NULL) {
             MessageBox(hwndDlg, TEXT("Could not allocate memory for Modules list"), NULL, MB_ICONERROR);
             __leave;

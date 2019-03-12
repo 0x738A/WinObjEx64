@@ -204,6 +204,9 @@
     <ClCompile Include="props\propToken.c">
       <Filter>Source Files\props</Filter>
     </ClCompile>
+    <ClCompile Include="wine.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
